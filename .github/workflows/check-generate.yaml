@@ -3,9 +3,6 @@ name: Check Generated Files
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'api/**'
-      - '**/*.gen.cfg'
 
 jobs:
   check:
@@ -13,11 +10,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Check for relevant changes
+        uses: tj-actions/changed-files@v47
+        id: filter
+        with:
+          files: |
+            api/**
+            **/*.gen.cfg
+
       - name: Set up Go
-        uses: actions/setup-go@v5
+        if: steps.filter.outputs.any_changed == 'true'
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Check generated files
+        if: steps.filter.outputs.any_changed == 'true'
         run: make check-generate-api
 
+      - name: Skip
+        if: steps.filter.outputs.any_changed == 'false'
+        run: echo "No API changes, skipping check"
