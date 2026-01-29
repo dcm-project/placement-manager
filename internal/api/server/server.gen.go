@@ -39,13 +39,13 @@ type Health struct {
 	Path *string `json:"path,omitempty"`
 
 	// Status Health status
-	Status *string `json:"status,omitempty"`
+	Status string `json:"status"`
 }
 
 // Resource Full resource representation
 type Resource struct {
-	// CatalogItemInstance The unique identifier of the catalog item instance
-	CatalogItemInstance string `json:"catalog_item_instance"`
+	// CatalogItemInstanceId The unique identifier of the catalog item instance
+	CatalogItemInstanceId string `json:"catalog_item_instance_id"`
 
 	// CreateTime Timestamp when the resource was first created
 	CreateTime *time.Time `json:"create_time,omitempty"`
@@ -55,6 +55,12 @@ type Resource struct {
 
 	// Path Resource path identifier
 	Path *string `json:"path,omitempty"`
+
+	// ProviderName Name of the Service Provider
+	ProviderName *string `json:"provider_name,omitempty"`
+
+	// ResourceName Name of the resource
+	ResourceName *string `json:"resource_name,omitempty"`
 
 	// Spec Service specification following one of the supported service type
 	// schemas (VMSpec, ContainerSpec, DatabaseSpec, or ClusterSpec).
@@ -67,8 +73,8 @@ type Resource struct {
 // ResourceList Paginated list of resources
 type ResourceList struct {
 	// NextPageToken Token for retrieving the next page of results
-	NextPageToken *string     `json:"next_page_token,omitempty"`
-	Resources     *[]Resource `json:"resources,omitempty"`
+	NextPageToken *string    `json:"next_page_token,omitempty"`
+	Resources     []Resource `json:"resources"`
 }
 
 // ResourceIdPath defines model for ResourceIdPath.
