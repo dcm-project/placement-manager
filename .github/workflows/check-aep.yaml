@@ -6,26 +6,4 @@ on:
 
 jobs:
   check-aep:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Check for relevant changes
-        uses: tj-actions/changed-files@v47
-        id: filter
-        with:
-          files: |
-            api/**/openapi.yaml
-            .spectral.yaml
-
-      - name: Install Spectral
-        if: steps.filter.outputs.any_changed == 'true'
-        run: npm install -g @stoplight/spectral-cli
-
-      - name: Check AEP compliance
-        if: steps.filter.outputs.any_changed == 'true'
-        run: make check-aep
-
-      - name: Skip
-        if: steps.filter.outputs.any_changed == 'false'
-        run: echo "No API changes, skipping check"
+    uses: dcm-project/shared-workflows/.github/workflows/check-aep.yaml@main

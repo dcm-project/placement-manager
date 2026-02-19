@@ -6,28 +6,4 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Check for relevant changes
-        uses: tj-actions/changed-files@v47
-        id: filter
-        with:
-          files: |
-            api/**
-            **/*.gen.cfg
-
-      - name: Set up Go
-        if: steps.filter.outputs.any_changed == 'true'
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: Check generated files
-        if: steps.filter.outputs.any_changed == 'true'
-        run: make check-generate-api
-
-      - name: Skip
-        if: steps.filter.outputs.any_changed == 'false'
-        run: echo "No API changes, skipping check"
+    uses: dcm-project/shared-workflows/.github/workflows/check-generate.yaml@main
