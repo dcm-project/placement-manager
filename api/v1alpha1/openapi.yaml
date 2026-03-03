@@ -89,7 +89,7 @@ paths:
       operationId: createResource
       description: |
         Create a new resource.
-        Optionally specify a client-assigned ID 
+        Optionally specify a client-assigned ID
         via the `id` query parameter. If not provided, the
         server will generate an ID.
       parameters:
@@ -98,7 +98,9 @@ paths:
           description: Optional ID for the resource
           schema:
             type: string
-            pattern: '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'
+            pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+            minLength: 1
+            maxLength: 63
       requestBody:
         required: true
         content:
@@ -211,6 +213,8 @@ components:
       schema:
         type: string
         pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+        minLength: 1
+        maxLength: 63
       description: Unique identifier of the resource
       example: "123e4567-e89b-12d3-a456-426614174000"
   schemas:
