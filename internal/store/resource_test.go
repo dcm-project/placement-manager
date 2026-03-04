@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"encoding/base64"
 
 	"github.com/dcm-project/placement-manager/internal/store"
 	"github.com/dcm-project/placement-manager/internal/store/model"
@@ -147,6 +148,44 @@ var _ = Describe("Resource Store", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result2.Resources).To(HaveLen(1))
 			Expect(result2.NextPageToken).To(BeNil())
+		})
+
+		It("defaults PageSize when zero or negative", func() {
+			// PageSize=0 should fallback to default (100) and not error
+			pageZero, err := requestStore.List(ctx, &store.ResourceListOptions{
+				PageSize: 0,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			// We only created 3 items, so all should be returned with the default page size
+			Expect(pageZero.Resources).To(HaveLen(3))
+			Expect(pageZero.NextPageToken).To(BeNil())
+
+			// Negative PageSize should also fallback to default (100)
+			pageNegative, err := requestStore.List(ctx, &store.ResourceListOptions{
+				PageSize: -1,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pageNegative.Resources).To(HaveLen(3))
+			Expect(pageNegative.NextPageToken).To(BeNil())
+		})
+
+		It("treats malformed PageToken as starting from offset 0", func() {
+			// Malformed, non-base64 token should be treated as offset 0
+			pageToken := "!!not-base64!!"
+			page, err := requestStore.List(ctx, &store.ResourceListOptions{
+				PageToken: &pageToken,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(page.Resources).To(HaveLen(3))
+			// Entire result set should be visible from offset 0
+
+			// Well-formed base64 that does not decode to an integer should also be treated as offset 0
+			malformedToken := base64.StdEncoding.EncodeToString([]byte("not-an-int"))
+			page, err = requestStore.List(ctx, &store.ResourceListOptions{
+				PageToken: &malformedToken,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(page.Resources).To(HaveLen(3))
 		})
 	})
 
