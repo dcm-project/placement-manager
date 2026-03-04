@@ -31,6 +31,9 @@ func main() {
 	dataStore := store.NewStore(db)
 	defer dataStore.Close()
 
+	// Initialize service
+	placementService := service.NewPlacementService(dataStore)
+
 	// Create TCP listener
 	listener, err := net.Listen("tcp", cfg.Service.Address)
 	if err != nil {
@@ -38,7 +41,7 @@ func main() {
 	}
 
 	// Initialize handler
-	handler := handlers.NewHandler()
+	handler := handlers.NewHandler(placementService)
 
 	// Create API server
 	srv := apiserver.New(cfg, listener, handler)
