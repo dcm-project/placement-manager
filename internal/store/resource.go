@@ -32,7 +32,6 @@ type ResourceListResult struct {
 type Resource interface {
 	List(ctx context.Context, opts *ResourceListOptions) (*ResourceListResult, error)
 	Create(ctx context.Context, request model.Resource) (*model.Resource, error)
-	Update(ctx context.Context, request model.Resource) (*model.Resource, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (*model.Resource, error)
 }
@@ -98,30 +97,6 @@ func (s *ResourceStore) List(ctx context.Context, opts *ResourceListOptions) (*R
 func (s *ResourceStore) Create(ctx context.Context, request model.Resource) (*model.Resource, error) {
 	if err := s.db.WithContext(ctx).Clauses(clause.Returning{}).Create(&request).Error; err != nil {
 		return nil, err
-	}
-	return &request, nil
-}
-
-func (s *ResourceStore) Update(ctx context.Context, request model.Resource) (*model.Resource, error) {
-	// Validate approval status
-	if request.ApprovalStatus != nil && *request.ApprovalStatus != "" {
-		if *request.ApprovalStatus != "modified" && *request.ApprovalStatus != "approved" {
-			return nil, ErrInvalidApprovalStatus
-		}
-	}
-
-	// Use Select to explicitly specify which fields can be updated
-	result := s.db.WithContext(ctx).
-		Model(&model.Resource{ID: request.ID}).
-		Clauses(clause.Returning{}).
-		Select("ProviderName", "ApprovalStatus", "ValidSpec").
-		Updates(&request)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
-		return nil, ErrRequestNotFound
 	}
 	return &request, nil
 }
