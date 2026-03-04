@@ -94,6 +94,47 @@ var _ = Describe("Handler", func() {
 			Expect(ok).To(BeTrue())
 			Expect(*jsonResp.Id).To(Equal(specifiedID))
 		})
+
+		It("returns 400 for invalid ID format", func() {
+			invalidID := "not-a-valid-uuid"
+			req := server.CreateResourceRequestObject{
+				Params: server.CreateResourceParams{Id: &invalidID},
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-item-123",
+					Spec:                  map[string]interface{}{"cpu": 2},
+				},
+			}
+
+			resp, err := handler.CreateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			_, ok := resp.(server.CreateResource400ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue())
+		})
+
+		It("returns 500 for internal errors", func() {
+			// Close the database to simulate internal error
+			sqlDB, _ := db.DB()
+			sqlDB.Close()
+
+			req := server.CreateResourceRequestObject{
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-item-789",
+					Spec:                  map[string]interface{}{"cpu": 2},
+				},
+			}
+
+			resp, err := handler.CreateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.CreateResourcedefaultApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue())
+			Expect(problemResp.StatusCode).To(Equal(500))
+			Expect(problemResp.Body.Type).To(Equal("internal-error"))
+			Expect(problemResp.Body.Title).To(Equal("Internal error"))
+			Expect(problemResp.Body.Status).NotTo(BeNil())
+			Expect(*problemResp.Body.Status).To(Equal(500))
+		})
 	})
 
 	Describe("GetResource", func() {
@@ -303,6 +344,47 @@ var _ = Describe("Handler", func() {
 			Expect(err).NotTo(HaveOccurred())
 			_, ok := resp.(server.DeleteResource400ApplicationProblemPlusJSONResponse)
 			Expect(ok).To(BeTrue())
+		})
+	})
+
+	Describe("Error Response Structure (RFC 7807)", func() {
+		It("returns proper problem+json structure for validation errors (400)", func() {
+			req := server.GetResourceRequestObject{
+				ResourceId: "not-a-valid-uuid",
+			}
+
+			resp, err := handler.GetResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.GetResource400ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue())
+
+			// Verify RFC 7807 required fields
+			Expect(problemResp.Type).To(Equal("validation-error"))
+			Expect(problemResp.Title).To(Equal("Invalid request"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(400))
+			Expect(problemResp.Detail).NotTo(BeNil())
+			Expect(*problemResp.Detail).To(ContainSubstring("invalid resource ID format"))
+		})
+
+		It("returns proper problem+json structure for not found errors (404)", func() {
+			req := server.GetResourceRequestObject{
+				ResourceId: uuid.New().String(),
+			}
+
+			resp, err := handler.GetResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.GetResource404ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue())
+
+			// Verify RFC 7807 required fields
+			Expect(problemResp.Type).To(Equal("not-found"))
+			Expect(problemResp.Title).To(Equal("Resource not found"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(404))
+			Expect(problemResp.Detail).NotTo(BeNil())
 		})
 	})
 })
