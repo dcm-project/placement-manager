@@ -68,12 +68,6 @@ type Resource struct {
 
 	// UpdateTime Timestamp when the resource was last updated
 	UpdateTime *time.Time `json:"update_time,omitempty"`
-
-	// ValidSpec Service specification following one of the supported service type
-	// schemas (VMSpec, ContainerSpec, DatabaseSpec, or ClusterSpec).
-	// This Spec has been validated and possibly mutated by DCM Policy Engine.
-	// Hence its value may differ from the spec field (original intention of the user).
-	ValidSpec *map[string]interface{} `json:"valid_spec,omitempty"`
 }
 
 // ResourceList Paginated list of resources

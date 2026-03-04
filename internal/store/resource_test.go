@@ -42,17 +42,16 @@ var _ = Describe("Resource Store", func() {
 			r := model.Resource{
 				ID:                    uuid.New(),
 				CatalogItemInstanceId: "catalog-instance-123",
-				OriginalSpec:          map[string]any{"cpu": "2", "memory": "4Gi"},
+				Spec:                  map[string]any{"cpu": "2", "memory": "4Gi"},
 			}
 			created, err := requestStore.Create(ctx, r)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(created.ID).To(Equal(r.ID))
 			Expect(created.CatalogItemInstanceId).To(Equal("catalog-instance-123"))
-			Expect(created.OriginalSpec).To(Equal(map[string]any{"cpu": "2", "memory": "4Gi"}))
+			Expect(created.Spec).To(Equal(map[string]any{"cpu": "2", "memory": "4Gi"}))
 			Expect(created.ProviderName).To(BeNil())
 			Expect(created.ApprovalStatus).To(BeNil())
-			Expect(created.ValidSpec).To(BeNil())
 		})
 	})
 
@@ -61,7 +60,7 @@ var _ = Describe("Resource Store", func() {
 			r := model.Resource{
 				ID:                    uuid.New(),
 				CatalogItemInstanceId: "catalog-instance-456",
-				OriginalSpec:          map[string]any{"test": "data"},
+				Spec:                  map[string]any{"test": "data"},
 			}
 			_, _ = requestStore.Create(ctx, r)
 
@@ -78,81 +77,15 @@ var _ = Describe("Resource Store", func() {
 		})
 	})
 
-	Describe("Update", func() {
-		var testRequest *model.Resource
-
-		BeforeEach(func() {
-			// Create a test resource for all Update tests
-			r := model.Resource{
-				ID:                    uuid.New(),
-				CatalogItemInstanceId: "catalog-update-test",
-				OriginalSpec:          map[string]any{"cpu": "2"},
-			}
-			created, err := requestStore.Create(ctx, r)
-			Expect(err).NotTo(HaveOccurred())
-			testRequest = created
-		})
-
-		It("updates provider name, approval status, and spec", func() {
-			// Update with provider name, approval status, and spec
-			providerName := "updated-provider"
-			approvalStatus := "modified"
-			spec := map[string]any{"cpu": "4", "memory": "8Gi"}
-			testRequest.ProviderName = &providerName
-			testRequest.ApprovalStatus = &approvalStatus
-			testRequest.ValidSpec = &spec
-
-			updated, err := requestStore.Update(ctx, *testRequest)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(*updated.ProviderName).To(Equal("updated-provider"))
-			Expect(*updated.ApprovalStatus).To(Equal("modified"))
-			Expect(*updated.ValidSpec).To(Equal(map[string]any{"cpu": "4", "memory": "8Gi"}))
-		})
-
-		It("validates approval status on update", func() {
-			// Try to update with invalid approval status
-			invalidStatus := "pending"
-			testRequest.ApprovalStatus = &invalidStatus
-
-			_, err := requestStore.Update(ctx, *testRequest)
-
-			Expect(err).To(Equal(store.ErrInvalidApprovalStatus))
-		})
-
-		It("accepts 'approved' approval status", func() {
-			// Update with approved status
-			approvedStatus := "approved"
-			testRequest.ApprovalStatus = &approvedStatus
-
-			updated, err := requestStore.Update(ctx, *testRequest)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(*updated.ApprovalStatus).To(Equal("approved"))
-		})
-
-		It("returns ErrRequestNotFound for missing ID", func() {
-			r := model.Resource{
-				ID:                    uuid.New(),
-				CatalogItemInstanceId: "non-existent",
-				OriginalSpec:          map[string]any{},
-			}
-
-			_, err := requestStore.Update(ctx, r)
-
-			Expect(err).To(Equal(store.ErrRequestNotFound))
-		})
-	})
-
 	Describe("List", func() {
 		BeforeEach(func() {
 			provider1 := "provider-a"
 			provider2 := "provider-b"
 			// Create test data
 			requests := []model.Resource{
-				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-1", OriginalSpec: map[string]any{}},
-				{ID: uuid.New(), ProviderName: &provider2, CatalogItemInstanceId: "cat-2", OriginalSpec: map[string]any{}},
-				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-3", OriginalSpec: map[string]any{}},
+				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-1", Spec: map[string]any{}},
+				{ID: uuid.New(), ProviderName: &provider2, CatalogItemInstanceId: "cat-2", Spec: map[string]any{}},
+				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-3", Spec: map[string]any{}},
 			}
 			for _, r := range requests {
 				_, err := requestStore.Create(ctx, r)
@@ -222,7 +155,7 @@ var _ = Describe("Resource Store", func() {
 			r := model.Resource{
 				ID:                    uuid.New(),
 				CatalogItemInstanceId: "cat-del",
-				OriginalSpec:          map[string]any{},
+				Spec:                  map[string]any{},
 			}
 			_, _ = requestStore.Create(ctx, r)
 

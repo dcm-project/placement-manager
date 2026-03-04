@@ -11,8 +11,10 @@ import (
 	"github.com/dcm-project/placement-manager/api/v1alpha1"
 	"github.com/dcm-project/placement-manager/internal/api/server"
 	"github.com/dcm-project/placement-manager/internal/config"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
 const gracefulShutdownTimeout = 5 * time.Second
@@ -44,6 +46,15 @@ func (s *Server) Run(ctx context.Context) error {
 	if len(swagger.Servers) == 0 {
 		return fmt.Errorf("OpenAPI spec missing servers configuration")
 	}
+
+	// Add OpenAPI request validation middleware
+	router.Use(nethttpmiddleware.OapiRequestValidatorWithOptions(swagger, &nethttpmiddleware.Options{
+		Options: openapi3filter.Options{
+			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+		},
+		SilenceServersWarning: true,
+	}))
+
 	server.HandlerFromMuxWithBaseURL(server.NewStrictHandler(s.handler, nil), router, swagger.Servers[0].URL)
 
 	srv := http.Server{Handler: router}

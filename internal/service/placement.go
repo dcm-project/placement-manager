@@ -29,6 +29,8 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 	// Generate path
 	path := fmt.Sprintf("resources/%s", resourceIDStr)
 
+	// Validate request with policy engine
+
 	// Convert to store model
 	requestModel := resourceToStoreModel(req, resourceIDStr, path)
 
@@ -38,11 +40,7 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 		return nil, NewInternalError(fmt.Sprintf("failed to create database record for resource %s: %v", resourceIDStr, err))
 	}
 
-	// Validate request with policy engine
-
 	// Send request to SP Resource Manager
-
-	// Update store with approvalStatus,providerName and validSpec
 
 	log.Printf("Successfully created resource: %s (catalog_item_instance_id: %s)", created.ID, created.CatalogItemInstanceId)
 	return storeModelToResource(created), nil

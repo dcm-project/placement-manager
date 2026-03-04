@@ -18,8 +18,7 @@ func storeModelToResource(m *model.Resource) *server.Resource {
 		Id:                    &idStr,
 		Path:                  &path,
 		CatalogItemInstanceId: m.CatalogItemInstanceId,
-		Spec:                  m.OriginalSpec,
-		ValidSpec:             m.ValidSpec,
+		Spec:                  m.Spec,
 		ProviderName:          m.ProviderName,
 		ApprovalStatus:        m.ApprovalStatus,
 		CreateTime:            PtrTime(m.CreateTime),
@@ -33,7 +32,7 @@ func resourceToStoreModel(req *server.Resource, id, path string) model.Resource 
 	return model.Resource{
 		ID:                    uuid.MustParse(id),
 		CatalogItemInstanceId: req.CatalogItemInstanceId,
-		OriginalSpec:          req.Spec,
+		Spec:                  req.Spec,
 		Path:                  path,
 	}
 }
