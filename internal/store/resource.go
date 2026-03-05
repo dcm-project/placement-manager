@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/dcm-project/placement-manager/internal/store/model"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -32,8 +31,8 @@ type ResourceListResult struct {
 type Resource interface {
 	List(ctx context.Context, opts *ResourceListOptions) (*ResourceListResult, error)
 	Create(ctx context.Context, request model.Resource) (*model.Resource, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-	Get(ctx context.Context, id uuid.UUID) (*model.Resource, error)
+	Delete(ctx context.Context, id string) error
+	Get(ctx context.Context, id string) (*model.Resource, error)
 }
 
 type ResourceStore struct {
@@ -101,8 +100,8 @@ func (s *ResourceStore) Create(ctx context.Context, request model.Resource) (*mo
 	return &request, nil
 }
 
-func (s *ResourceStore) Delete(ctx context.Context, id uuid.UUID) error {
-	result := s.db.WithContext(ctx).Delete(&model.Resource{}, id)
+func (s *ResourceStore) Delete(ctx context.Context, id string) error {
+	result := s.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Resource{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -112,9 +111,9 @@ func (s *ResourceStore) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (s *ResourceStore) Get(ctx context.Context, id uuid.UUID) (*model.Resource, error) {
+func (s *ResourceStore) Get(ctx context.Context, id string) (*model.Resource, error) {
 	var request model.Resource
-	if err := s.db.WithContext(ctx).First(&request, id).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&request, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrRequestNotFound
 		}

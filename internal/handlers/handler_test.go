@@ -39,7 +39,7 @@ var _ = Describe("Handler", func() {
 
 	AfterEach(func() {
 		sqlDB, _ := db.DB()
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	})
 
 	Describe("GetHealth", func() {
@@ -95,27 +95,10 @@ var _ = Describe("Handler", func() {
 			Expect(*jsonResp.Id).To(Equal(specifiedID))
 		})
 
-		It("returns 400 for invalid ID format", func() {
-			invalidID := "not-a-valid-uuid"
-			req := server.CreateResourceRequestObject{
-				Params: server.CreateResourceParams{Id: &invalidID},
-				Body: &server.Resource{
-					CatalogItemInstanceId: "catalog-item-123",
-					Spec:                  map[string]interface{}{"cpu": 2},
-				},
-			}
-
-			resp, err := handler.CreateResource(ctx, req)
-
-			Expect(err).NotTo(HaveOccurred())
-			_, ok := resp.(server.CreateResource400ApplicationProblemPlusJSONResponse)
-			Expect(ok).To(BeTrue())
-		})
-
 		It("returns 500 for internal errors", func() {
 			// Close the database to simulate internal error
 			sqlDB, _ := db.DB()
-			sqlDB.Close()
+			_ = sqlDB.Close()
 
 			req := server.CreateResourceRequestObject{
 				Body: &server.Resource{
@@ -170,18 +153,6 @@ var _ = Describe("Handler", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			_, ok := resp.(server.GetResource404ApplicationProblemPlusJSONResponse)
-			Expect(ok).To(BeTrue())
-		})
-
-		It("returns 400 for invalid ID format", func() {
-			req := server.GetResourceRequestObject{
-				ResourceId: "not-a-uuid",
-			}
-
-			resp, err := handler.GetResource(ctx, req)
-
-			Expect(err).NotTo(HaveOccurred())
-			_, ok := resp.(server.GetResource400ApplicationProblemPlusJSONResponse)
 			Expect(ok).To(BeTrue())
 		})
 	})
@@ -333,30 +304,20 @@ var _ = Describe("Handler", func() {
 			_, ok := resp.(server.DeleteResource404ApplicationProblemPlusJSONResponse)
 			Expect(ok).To(BeTrue())
 		})
-
-		It("returns 400 for invalid ID format", func() {
-			req := server.DeleteResourceRequestObject{
-				ResourceId: "invalid-uuid",
-			}
-
-			resp, err := handler.DeleteResource(ctx, req)
-
-			Expect(err).NotTo(HaveOccurred())
-			_, ok := resp.(server.DeleteResource400ApplicationProblemPlusJSONResponse)
-			Expect(ok).To(BeTrue())
-		})
 	})
 
 	Describe("Error Response Structure (RFC 7807)", func() {
 		It("returns proper problem+json structure for validation errors (400)", func() {
-			req := server.GetResourceRequestObject{
-				ResourceId: "not-a-valid-uuid",
+			// Test validation error with invalid page size
+			invalidPageSize := 200
+			req := server.ListResourcesRequestObject{
+				Params: server.ListResourcesParams{MaxPageSize: &invalidPageSize},
 			}
 
-			resp, err := handler.GetResource(ctx, req)
+			resp, err := handler.ListResources(ctx, req)
 
 			Expect(err).NotTo(HaveOccurred())
-			problemResp, ok := resp.(server.GetResource400ApplicationProblemPlusJSONResponse)
+			problemResp, ok := resp.(server.ListResources400ApplicationProblemPlusJSONResponse)
 			Expect(ok).To(BeTrue())
 
 			// Verify RFC 7807 required fields
@@ -365,7 +326,7 @@ var _ = Describe("Handler", func() {
 			Expect(problemResp.Status).NotTo(BeNil())
 			Expect(*problemResp.Status).To(Equal(400))
 			Expect(problemResp.Detail).NotTo(BeNil())
-			Expect(*problemResp.Detail).To(ContainSubstring("invalid resource ID format"))
+			Expect(*problemResp.Detail).To(ContainSubstring("page size"))
 		})
 
 		It("returns proper problem+json structure for not found errors (404)", func() {
