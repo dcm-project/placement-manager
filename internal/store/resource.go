@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/dcm-project/placement-manager/internal/store/model"
 	"gorm.io/gorm"
@@ -10,7 +11,8 @@ import (
 )
 
 var (
-	ErrRequestNotFound       = errors.New("resource not found")
+	ErrResourceNotFound      = errors.New("resource not found")
+	ErrResourceIdExist       = errors.New("resource with id already exists")
 	ErrInvalidApprovalStatus = errors.New("approval status must be 'modified' or 'approved'")
 )
 
@@ -95,6 +97,13 @@ func (s *ResourceStore) List(ctx context.Context, opts *ResourceListOptions) (*R
 
 func (s *ResourceStore) Create(ctx context.Context, request model.Resource) (*model.Resource, error) {
 	if err := s.db.WithContext(ctx).Clauses(clause.Returning{}).Create(&request).Error; err != nil {
+		// Check for duplicate key errors (PostgreSQL, MySQL, SQLite)
+		errMsg := err.Error()
+		if errors.Is(err, gorm.ErrDuplicatedKey) ||
+			strings.Contains(errMsg, "UNIQUE constraint") ||
+			strings.Contains(errMsg, "duplicate key") {
+			return nil, ErrResourceIdExist
+		}
 		return nil, err
 	}
 	return &request, nil
@@ -106,7 +115,7 @@ func (s *ResourceStore) Delete(ctx context.Context, id string) error {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return ErrRequestNotFound
+		return ErrResourceNotFound
 	}
 	return nil
 }
@@ -115,7 +124,7 @@ func (s *ResourceStore) Get(ctx context.Context, id string) (*model.Resource, er
 	var request model.Resource
 	if err := s.db.WithContext(ctx).First(&request, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrRequestNotFound
+			return nil, ErrResourceNotFound
 		}
 		return nil, err
 	}

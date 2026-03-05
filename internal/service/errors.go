@@ -3,6 +3,7 @@ package service
 // Error codes returned by service operations.
 const (
 	ErrCodeNotFound      = "NOT_FOUND"
+	ErrCodeConflict      = "CONFLICT"
 	ErrCodeValidation    = "VALIDATION"
 	ErrCodeProviderError = "PROVIDER_ERROR"
 	ErrCodeInternal      = "INTERNAL_ERROR"
@@ -38,6 +39,13 @@ func NewValidationError(message string) *ServiceError {
 func NewInternalError(message string) *ServiceError {
 	return &ServiceError{
 		Code:    ErrCodeInternal,
+		Message: message,
+	}
+}
+
+func NewConflictError(message string) *ServiceError {
+	return &ServiceError{
+		Code:    ErrCodeConflict,
 		Message: message,
 	}
 }
