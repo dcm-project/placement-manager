@@ -48,12 +48,7 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 
 // GetResource retrieves a placement request by ID.
 func (s *PlacementService) GetResource(ctx context.Context, requestID string) (*server.Resource, error) {
-	id, err := uuid.Parse(requestID)
-	if err != nil {
-		return nil, NewValidationError("invalid resource ID format")
-	}
-
-	request, err := s.store.Resource().Get(ctx, id)
+	request, err := s.store.Resource().Get(ctx, requestID)
 	if err != nil {
 		if errors.Is(err, store.ErrRequestNotFound) {
 			return nil, NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))
@@ -104,12 +99,7 @@ func (s *PlacementService) ListResources(ctx context.Context, providerName *stri
 
 // DeleteResource removes a placement request by ID.
 func (s *PlacementService) DeleteResource(ctx context.Context, requestID string) error {
-	id, err := uuid.Parse(requestID)
-	if err != nil {
-		return NewValidationError("invalid resource ID format")
-	}
-
-	err = s.store.Resource().Delete(ctx, id)
+	err := s.store.Resource().Delete(ctx, requestID)
 	if err != nil {
 		if errors.Is(err, store.ErrRequestNotFound) {
 			return NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))

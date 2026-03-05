@@ -6,12 +6,11 @@ import (
 
 	"github.com/dcm-project/placement-manager/internal/api/server"
 	"github.com/dcm-project/placement-manager/internal/store/model"
-	"github.com/google/uuid"
 )
 
 // storeModelToResource converts a database model to an API response type
 func storeModelToResource(m *model.Resource) *server.Resource {
-	idStr := m.ID.String()
+	idStr := m.ID
 	path := fmt.Sprintf("resources/%s", idStr)
 
 	resource := &server.Resource{
@@ -30,7 +29,7 @@ func storeModelToResource(m *model.Resource) *server.Resource {
 // resourceToStoreModel converts an API request to a database model
 func resourceToStoreModel(req *server.Resource, id, path string) model.Resource {
 	return model.Resource{
-		ID:                    uuid.MustParse(id),
+		ID:                    id,
 		CatalogItemInstanceId: req.CatalogItemInstanceId,
 		Spec:                  req.Spec,
 		Path:                  path,

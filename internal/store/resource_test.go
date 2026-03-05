@@ -35,13 +35,13 @@ var _ = Describe("Resource Store", func() {
 
 	AfterEach(func() {
 		sqlDB, _ := db.DB()
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	})
 
 	Describe("Create", func() {
 		It("persists the resource without optional fields", func() {
 			r := model.Resource{
-				ID:                    uuid.New(),
+				ID:                    uuid.New().String(),
 				CatalogItemInstanceId: "catalog-instance-123",
 				Spec:                  map[string]any{"cpu": "2", "memory": "4Gi"},
 			}
@@ -59,7 +59,7 @@ var _ = Describe("Resource Store", func() {
 	Describe("Get", func() {
 		It("retrieves by ID", func() {
 			r := model.Resource{
-				ID:                    uuid.New(),
+				ID:                    uuid.New().String(),
 				CatalogItemInstanceId: "catalog-instance-456",
 				Spec:                  map[string]any{"test": "data"},
 			}
@@ -72,7 +72,7 @@ var _ = Describe("Resource Store", func() {
 		})
 
 		It("returns ErrRequestNotFound for missing ID", func() {
-			_, err := requestStore.Get(ctx, uuid.New())
+			_, err := requestStore.Get(ctx, uuid.New().String())
 
 			Expect(err).To(Equal(store.ErrRequestNotFound))
 		})
@@ -84,9 +84,9 @@ var _ = Describe("Resource Store", func() {
 			provider2 := "provider-b"
 			// Create test data
 			requests := []model.Resource{
-				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-1", Spec: map[string]any{}},
-				{ID: uuid.New(), ProviderName: &provider2, CatalogItemInstanceId: "cat-2", Spec: map[string]any{}},
-				{ID: uuid.New(), ProviderName: &provider1, CatalogItemInstanceId: "cat-3", Spec: map[string]any{}},
+				{ID: uuid.New().String(), ProviderName: &provider1, CatalogItemInstanceId: "cat-1", Spec: map[string]any{}},
+				{ID: uuid.New().String(), ProviderName: &provider2, CatalogItemInstanceId: "cat-2", Spec: map[string]any{}},
+				{ID: uuid.New().String(), ProviderName: &provider1, CatalogItemInstanceId: "cat-3", Spec: map[string]any{}},
 			}
 			for _, r := range requests {
 				_, err := requestStore.Create(ctx, r)
@@ -192,7 +192,7 @@ var _ = Describe("Resource Store", func() {
 	Describe("Delete", func() {
 		It("deletes the resource", func() {
 			r := model.Resource{
-				ID:                    uuid.New(),
+				ID:                    uuid.New().String(),
 				CatalogItemInstanceId: "cat-del",
 				Spec:                  map[string]any{},
 			}
@@ -207,7 +207,7 @@ var _ = Describe("Resource Store", func() {
 		})
 
 		It("returns ErrRequestNotFound for missing ID", func() {
-			err := requestStore.Delete(ctx, uuid.New())
+			err := requestStore.Delete(ctx, uuid.New().String())
 
 			Expect(err).To(Equal(store.ErrRequestNotFound))
 		})

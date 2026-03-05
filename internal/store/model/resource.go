@@ -2,13 +2,11 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Resource represents a resource provisioning request
 type Resource struct {
-	ID                    uuid.UUID      `gorm:"column:id;primaryKey;type:uuid"`
+	ID                    string         `gorm:"primaryKey;type:varchar(63)"`
 	CatalogItemInstanceId string         `gorm:"column:catalog_item_instance_id;not null"`
 	Spec                  map[string]any `gorm:"column:original_spec;type:jsonb;serializer:json;not null"`
 	ProviderName          *string        `gorm:"column:provider_name"`
