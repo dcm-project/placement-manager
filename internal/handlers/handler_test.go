@@ -95,6 +95,41 @@ var _ = Describe("Handler", func() {
 			Expect(*jsonResp.Id).To(Equal(specifiedID))
 		})
 
+		It("returns 409 for duplicate ID", func() {
+			specifiedID := uuid.New().String()
+			req := server.CreateResourceRequestObject{
+				Params: server.CreateResourceParams{Id: &specifiedID},
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-item-100",
+					Spec:                  map[string]interface{}{"cpu": 1},
+				},
+			}
+
+			// Create first resource
+			resp1, err := handler.CreateResource(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			_, ok := resp1.(server.CreateResource201JSONResponse)
+			Expect(ok).To(BeTrue(), "First create should return 201")
+
+			// Try to create second resource with same ID
+			resp, err := handler.CreateResource(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Check what we actually got
+			if resp201, ok := resp.(server.CreateResource201JSONResponse); ok {
+				Fail("Got 201 response instead of 409. Resource ID: " + *resp201.Id)
+			}
+
+			problemResp, ok := resp.(server.CreateResource409ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Second create should return 409")
+			Expect(problemResp.Type).To(Equal("conflict"))
+			Expect(problemResp.Title).To(Equal("Resource already exists"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(409))
+			Expect(problemResp.Detail).NotTo(BeNil())
+			Expect(*problemResp.Detail).To(ContainSubstring("already exists"))
+		})
+
 		It("returns 500 for internal errors", func() {
 			// Close the database to simulate internal error
 			sqlDB, _ := db.DB()

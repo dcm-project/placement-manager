@@ -37,6 +37,9 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 	// Create in store
 	created, err := s.store.Resource().Create(ctx, requestModel)
 	if err != nil {
+		if errors.Is(err, store.ErrResourceIdExist) {
+			return nil, NewConflictError(fmt.Sprintf("resource with id %s already exists", resourceIDStr))
+		}
 		return nil, NewInternalError(fmt.Sprintf("failed to create database record for resource %s: %v", resourceIDStr, err))
 	}
 
@@ -50,7 +53,7 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 func (s *PlacementService) GetResource(ctx context.Context, requestID string) (*server.Resource, error) {
 	request, err := s.store.Resource().Get(ctx, requestID)
 	if err != nil {
-		if errors.Is(err, store.ErrRequestNotFound) {
+		if errors.Is(err, store.ErrResourceNotFound) {
 			return nil, NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))
 		}
 		return nil, NewInternalError(fmt.Sprintf("failed to retrieve resource: %v", err))
@@ -101,7 +104,7 @@ func (s *PlacementService) ListResources(ctx context.Context, providerName *stri
 func (s *PlacementService) DeleteResource(ctx context.Context, requestID string) error {
 	err := s.store.Resource().Delete(ctx, requestID)
 	if err != nil {
-		if errors.Is(err, store.ErrRequestNotFound) {
+		if errors.Is(err, store.ErrResourceNotFound) {
 			return NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))
 		}
 		return NewInternalError(fmt.Sprintf("failed to delete database record for resource %s: %v", requestID, err))

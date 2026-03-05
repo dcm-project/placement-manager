@@ -54,6 +54,27 @@ var _ = Describe("Resource Store", func() {
 			Expect(created.ProviderName).To(BeNil())
 			Expect(created.ApprovalStatus).To(BeNil())
 		})
+
+		It("returns error for duplicate ID", func() {
+			id := uuid.New().String()
+			r1 := model.Resource{
+				ID:                    id,
+				CatalogItemInstanceId: "catalog-instance-123",
+				Spec:                  map[string]any{"cpu": "2"},
+			}
+			_, err := requestStore.Create(ctx, r1)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Attempt to create another resource with same ID
+			r2 := model.Resource{
+				ID:                    id,
+				CatalogItemInstanceId: "catalog-instance-456",
+				Spec:                  map[string]any{"cpu": "4"},
+			}
+			_, err = requestStore.Create(ctx, r2)
+
+			Expect(err).To(Equal(store.ErrResourceIdExist))
+		})
 	})
 
 	Describe("Get", func() {
@@ -71,10 +92,10 @@ var _ = Describe("Resource Store", func() {
 			Expect(found.CatalogItemInstanceId).To(Equal("catalog-instance-456"))
 		})
 
-		It("returns ErrRequestNotFound for missing ID", func() {
+		It("returns ErrResourceNotFound for missing ID", func() {
 			_, err := requestStore.Get(ctx, uuid.New().String())
 
-			Expect(err).To(Equal(store.ErrRequestNotFound))
+			Expect(err).To(Equal(store.ErrResourceNotFound))
 		})
 	})
 
@@ -203,13 +224,13 @@ var _ = Describe("Resource Store", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = requestStore.Get(ctx, r.ID)
-			Expect(err).To(Equal(store.ErrRequestNotFound))
+			Expect(err).To(Equal(store.ErrResourceNotFound))
 		})
 
-		It("returns ErrRequestNotFound for missing ID", func() {
+		It("returns ErrResourceNotFound for missing ID", func() {
 			err := requestStore.Delete(ctx, uuid.New().String())
 
-			Expect(err).To(Equal(store.ErrRequestNotFound))
+			Expect(err).To(Equal(store.ErrResourceNotFound))
 		})
 	})
 })
