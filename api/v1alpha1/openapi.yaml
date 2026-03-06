@@ -115,13 +115,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Resource'
         '400':
-          description: Invalid input
+          description: Invalid input or policy rejected the request
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Conflict - resourceID already in use
+          description: Conflict - resourceID already in use or policy conflict
           content:
             application/problem+json:
               schema:

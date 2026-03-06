@@ -7,18 +7,23 @@ import (
 	"log"
 
 	"github.com/dcm-project/placement-manager/internal/api/server"
+	"github.com/dcm-project/placement-manager/internal/policy"
 	"github.com/dcm-project/placement-manager/internal/store"
 	"github.com/google/uuid"
 )
 
 // PlacementService handles business logic for placement request management.
 type PlacementService struct {
-	store store.Store
+	store  store.Store
+	policy policy.Client
 }
 
-// NewPlacementService creates a new PlacementService with the given store.
-func NewPlacementService(store store.Store) *PlacementService {
-	return &PlacementService{store: store}
+// NewPlacementService creates a new PlacementService with the given store and policy client.
+func NewPlacementService(store store.Store, policyClient policy.Client) *PlacementService {
+	return &PlacementService{
+		store:  store,
+		policy: policyClient,
+	}
 }
 
 // CreateResource creates a new placement request.
@@ -31,10 +36,26 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 
 	// Validate request with policy engine
 
-	// Convert to store model
-	requestModel := resourceToStoreModel(req, resourceIDStr, path)
+	// Build policy payload
+	policyRequest := policy.EvaluateRequest{
+		Spec: req.Spec,
+	}
 
-	// Create in store
+	// Evaluate spec
+	policyResponse, err := s.policy.Evaluate(ctx, policyRequest)
+	if err != nil {
+		return nil, HandlePolicyError(err)
+	}
+
+	// Update request with status and selected provider
+	req.ApprovalStatus = &policyResponse.Status
+	providerName := policyResponse.SelectedProvider
+
+	// Convert API resource to store model
+	requestModel := resourceToStoreModel(req, resourceIDStr, path)
+	requestModel.ProviderName = &providerName
+
+	// Create resource in store
 	created, err := s.store.Resource().Create(ctx, requestModel)
 	if err != nil {
 		if errors.Is(err, store.ErrResourceIdExist) {
@@ -44,8 +65,11 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 	}
 
 	// Send request to SP Resource Manager
+	//evaluatedSpec := policyResponse.EvaluatedSpec
+	// If request fails, rollback DB
 
-	log.Printf("Successfully created resource: %s (catalog_item_instance_id: %s)", created.ID, created.CatalogItemInstanceId)
+	log.Printf("Successfully created resource: %s (catalog_item_instance_id: %s, provider: %s)",
+		created.ID, created.CatalogItemInstanceId, policyResponse.SelectedProvider)
 	return storeModelToResource(created), nil
 }
 
