@@ -36,11 +36,15 @@ func handleCreateResourceError(err error) server.CreateResourceResponseObject {
 		switch svcErr.Code {
 		case service.ErrCodeValidation:
 			return server.CreateResource400ApplicationProblemPlusJSONResponse(newError("validation-error", "Validation failed", svcErr.Message, 400))
+		case service.ErrCodePolicyRejected:
+			return server.CreateResource400ApplicationProblemPlusJSONResponse(newError("policy-rejected", "Policy rejected request", svcErr.Message, 400))
 		case service.ErrCodeConflict:
-			return server.CreateResource409ApplicationProblemPlusJSONResponse(newError("conflict", "Resource already exists", svcErr.Message, 409))
+			return server.CreateResource409ApplicationProblemPlusJSONResponse(newError("resource-conflict", "Resource already exists", svcErr.Message, 409))
+		case service.ErrCodePolicyConflict:
+			return server.CreateResource409ApplicationProblemPlusJSONResponse(newError("policy-conflict", "Policy conflict", svcErr.Message, 409))
 		case service.ErrCodeProviderError:
 			return server.CreateResource422ApplicationProblemPlusJSONResponse(newError("provider-error", "Provider error", svcErr.Message, 422))
-		case service.ErrCodeInternal:
+		case service.ErrCodeInternal, service.ErrCodePolicyError, service.ErrCodeSPRMError:
 			return server.CreateResourcedefaultApplicationProblemPlusJSONResponse{
 				Body:       newError("internal-error", "Internal error", svcErr.Message, 500),
 				StatusCode: 500,

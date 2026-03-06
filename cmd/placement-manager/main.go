@@ -11,7 +11,9 @@ import (
 	"github.com/dcm-project/placement-manager/internal/apiserver"
 	"github.com/dcm-project/placement-manager/internal/config"
 	"github.com/dcm-project/placement-manager/internal/handlers"
+	"github.com/dcm-project/placement-manager/internal/policy"
 	"github.com/dcm-project/placement-manager/internal/service"
+	"github.com/dcm-project/placement-manager/internal/sprm"
 	"github.com/dcm-project/placement-manager/internal/store"
 )
 
@@ -32,8 +34,22 @@ func main() {
 	dataStore := store.NewStore(db)
 	defer dataStore.Close()
 
+	// Initialize policy client
+	policyClient, err := policy.NewClient(cfg.Policy.URL)
+	if err != nil {
+		log.Fatalf("Failed to initialize policy client: %v", err)
+	}
+	log.Printf("Policy client initialized with URL: %s", cfg.Policy.URL)
+
+	// Initialize SPRM client
+	sprmClient, err := sprm.NewClient(cfg.SPRM.URL)
+	if err != nil {
+		log.Fatalf("Failed to initialize SPRM client: %v", err)
+	}
+	log.Printf("SPRM client initialized with URL: %s", cfg.SPRM.URL)
+
 	// Initialize service
-	placementService := service.NewPlacementService(dataStore)
+	placementService := service.NewPlacementService(dataStore, policyClient, sprmClient)
 
 	// Create TCP listener
 	listener, err := net.Listen("tcp", cfg.Service.Address)

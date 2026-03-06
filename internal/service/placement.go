@@ -7,18 +7,26 @@ import (
 	"log"
 
 	"github.com/dcm-project/placement-manager/internal/api/server"
+	"github.com/dcm-project/placement-manager/internal/policy"
+	"github.com/dcm-project/placement-manager/internal/sprm"
 	"github.com/dcm-project/placement-manager/internal/store"
 	"github.com/google/uuid"
 )
 
 // PlacementService handles business logic for placement request management.
 type PlacementService struct {
-	store store.Store
+	store  store.Store
+	policy policy.Client
+	sprm   sprm.Client
 }
 
-// NewPlacementService creates a new PlacementService with the given store.
-func NewPlacementService(store store.Store) *PlacementService {
-	return &PlacementService{store: store}
+// NewPlacementService creates a new PlacementService with the given store, policy client, and SPRM client.
+func NewPlacementService(store store.Store, policyClient policy.Client, sprmClient sprm.Client) *PlacementService {
+	return &PlacementService{
+		store:  store,
+		policy: policyClient,
+		sprm:   sprmClient,
+	}
 }
 
 // CreateResource creates a new placement request.
@@ -31,10 +39,26 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 
 	// Validate request with policy engine
 
-	// Convert to store model
-	requestModel := resourceToStoreModel(req, resourceIDStr, path)
+	// Build policy payload
+	policyRequest := policy.EvaluateRequest{
+		Spec: req.Spec,
+	}
 
-	// Create in store
+	// Evaluate spec
+	policyResponse, err := s.policy.Evaluate(ctx, policyRequest)
+	if err != nil {
+		return nil, handlePolicyError(err)
+	}
+
+	// Update request with status and selected provider
+	req.ApprovalStatus = &policyResponse.Status
+	providerName := policyResponse.SelectedProvider
+
+	// Convert API resource to store model
+	requestModel := resourceToStoreModel(req, resourceIDStr, path)
+	requestModel.ProviderName = &providerName
+
+	// Create resource in store
 	created, err := s.store.Resource().Create(ctx, requestModel)
 	if err != nil {
 		if errors.Is(err, store.ErrResourceIdExist) {
@@ -44,8 +68,23 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 	}
 
 	// Send request to SP Resource Manager
+	sprmRequest := sprm.CreateResourceRequest{
+		CatalogItemInstanceId: created.CatalogItemInstanceId,
+		Spec:                  policyResponse.EvaluatedSpec,
+		ProviderName:          providerName,
+	}
 
-	log.Printf("Successfully created resource: %s (catalog_item_instance_id: %s)", created.ID, created.CatalogItemInstanceId)
+	sprmResponse, err := s.sprm.CreateResource(ctx, sprmRequest)
+	if err != nil {
+		// SPRM call failed, rollback the database record
+		if err := s.store.Resource().Delete(ctx, created.ID); err != nil {
+			log.Printf("Failed to rollback resource %s after SPRM error: %v", created.ID, err)
+		}
+		return nil, handleSPRMError(err)
+	}
+
+	log.Printf("Successfully created resource: %s (catalog_item_instance_id: %s, provider: %s, sprm_status: %s)",
+		created.ID, created.CatalogItemInstanceId, providerName, sprmResponse.Status)
 	return storeModelToResource(created), nil
 }
 
@@ -102,7 +141,23 @@ func (s *PlacementService) ListResources(ctx context.Context, providerName *stri
 
 // DeleteResource removes a placement request by ID.
 func (s *PlacementService) DeleteResource(ctx context.Context, requestID string) error {
-	err := s.store.Resource().Delete(ctx, requestID)
+	// First, get the resource to obtain the CatalogItemInstanceId
+	resource, err := s.store.Resource().Get(ctx, requestID)
+	if err != nil {
+		if errors.Is(err, store.ErrResourceNotFound) {
+			return NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))
+		}
+		return NewInternalError(fmt.Sprintf("failed to retrieve resource for deletion: %v", err))
+	}
+
+	// Delete it from the SPRM first before deleting from the database
+	err = s.sprm.DeleteResource(ctx, resource.CatalogItemInstanceId)
+	if err != nil {
+		return handleSPRMError(err)
+	}
+
+	// Delete record from the database
+	err = s.store.Resource().Delete(ctx, requestID)
 	if err != nil {
 		if errors.Is(err, store.ErrResourceNotFound) {
 			return NewNotFoundError(fmt.Sprintf("resource %s not found", requestID))
@@ -110,7 +165,7 @@ func (s *PlacementService) DeleteResource(ctx context.Context, requestID string)
 		return NewInternalError(fmt.Sprintf("failed to delete database record for resource %s: %v", requestID, err))
 	}
 
-	log.Printf("Deleted resource from DB record: %s", requestID)
+	log.Printf("Deleted resource from SPRM and DB: %s (catalog_item_instance_id: %s)", requestID, resource.CatalogItemInstanceId)
 	return nil
 }
 
