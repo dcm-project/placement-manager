@@ -33,6 +33,8 @@ func resourceToStoreModel(req *server.Resource, id, path string) model.Resource 
 		CatalogItemInstanceId: req.CatalogItemInstanceId,
 		Spec:                  req.Spec,
 		Path:                  path,
+		ProviderName:          req.ProviderName,
+		ApprovalStatus:        req.ApprovalStatus,
 	}
 }
 

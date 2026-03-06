@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Service  *ServiceConfig
 	Database *DBConfig
+	Policy   *PolicyConfig
 }
 
 type ServiceConfig struct {
@@ -24,6 +25,11 @@ type DBConfig struct {
 	Name     string `envconfig:"DB_NAME" default:"placement-manager"`
 	User     string `envconfig:"DB_USER"`
 	Password string `envconfig:"DB_PASSWORD"`
+}
+
+// PolicyConfig holds policy manager configuration
+type PolicyConfig struct {
+	URL string `envconfig:"POLICY_MANAGER_URL" default:"http://localhost:8081"`
 }
 
 // Load reads configuration from environment variables
