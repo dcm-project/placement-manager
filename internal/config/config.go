@@ -30,7 +30,7 @@ type DBConfig struct {
 
 // PolicyConfig holds policy manager configuration
 type PolicyConfig struct {
-	URL string `envconfig:"POLICY_MANAGER_URL" default:"http://localhost:8081"`
+	URL string `envconfig:"POLICY_MANAGER_EVALUATION_URL" default:"http://localhost:8081"`
 }
 
 // SPRMConfig holds service provider resource manager configuration
