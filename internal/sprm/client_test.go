@@ -44,6 +44,19 @@ var _ = Describe("SPRM Client", func() {
 				Expect(r.URL.Path).To(Equal("/api/v1alpha1/service-type-instances"))
 				Expect(r.URL.Query().Get("id")).To(Equal("catalog-123"))
 
+				// Decode and verify the request body
+				var requestBody sprmv1alpha1.ServiceTypeInstance
+				err := json.NewDecoder(r.Body).Decode(&requestBody)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Verify provider name
+				Expect(requestBody.ProviderName).To(Equal("test-provider"))
+
+				// Verify spec
+				Expect(requestBody.Spec).NotTo(BeNil())
+				Expect(requestBody.Spec["cpu"]).To(Equal(float64(2))) // JSON unmarshals numbers as float64
+				Expect(requestBody.Spec["memory"]).To(Equal("4GB"))
+
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
 
