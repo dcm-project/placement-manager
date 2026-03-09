@@ -379,6 +379,28 @@ var _ = Describe("Handler", func() {
 			Expect(defaultResp.Body.Type).To(Equal("internal-error"))
 		})
 
+		It("returns 500 when SPRM internal error", func() {
+			mockSPRM.CreateResourceFunc = func(ctx context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error) {
+				return nil, &sprm.HTTPError{StatusCode: 500, Body: "SPRM internal server error"}
+			}
+
+			req := server.CreateResourceRequestObject{
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-sprm-error",
+					Spec:                  map[string]interface{}{"cpu": 2},
+				},
+			}
+
+			resp, err := handler.CreateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			defaultResp, ok := resp.(server.CreateResourcedefaultApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue())
+			Expect(defaultResp.StatusCode).To(Equal(500))
+			Expect(defaultResp.Body.Type).To(Equal("internal-error"))
+			Expect(*defaultResp.Body.Detail).To(ContainSubstring("SPRM internal error"))
+		})
+
 		It("returns 400 when policy validation fails", func() {
 			mockPolicy.EvaluateFunc = func(ctx context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
 				return nil, &policy.HTTPError{StatusCode: 400, Body: "bad request"}

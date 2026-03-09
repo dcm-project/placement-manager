@@ -113,7 +113,13 @@ var _ = Describe("Policy Client", func() {
 			_, err := client.Evaluate(ctx, req)
 
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("policy engine returned status 400"))
+
+			// Verify it's an HTTPError with correct fields
+			var httpErr *policy.HTTPError
+			Expect(errors.As(err, &httpErr)).To(BeTrue())
+			Expect(httpErr.StatusCode).To(Equal(400))
+			Expect(httpErr.Body).To(ContainSubstring("bad-request"))
+			Expect(httpErr.Body).To(ContainSubstring("Bad Request"))
 		})
 
 		It("returns HTTPError that can be extracted with errors.As", func() {

@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/dcm-project/placement-manager/internal/api/server"
@@ -261,6 +262,50 @@ var _ = Describe("PlacementService", func() {
 			Expect(err).To(BeAssignableToTypeOf(svcErr))
 			svcErr = err.(*service.ServiceError)
 			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
+		})
+
+		It("returns error when policy returns unmapped HTTP status code", func() {
+			mockPolicy.EvaluateFunc = func(ctx context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 418, Body: "I'm a teapot"}
+			}
+
+			resource := &server.Resource{
+				CatalogItemInstanceId: "catalog-teapot",
+				Spec:                  map[string]any{"cpu": 2},
+			}
+
+			result, err := placementSvc.CreateResource(ctx, resource, nil)
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(err).To(BeAssignableToTypeOf(svcErr))
+			svcErr = err.(*service.ServiceError)
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyError))
+			Expect(svcErr.Message).To(ContainSubstring("policy evaluation failed with status 418"))
+			Expect(svcErr.Message).To(ContainSubstring("I'm a teapot"))
+		})
+
+		It("returns error when policy client communication fails", func() {
+			mockPolicy.EvaluateFunc = func(ctx context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, errors.New("connection refused")
+			}
+
+			resource := &server.Resource{
+				CatalogItemInstanceId: "catalog-network-error",
+				Spec:                  map[string]any{"cpu": 2},
+			}
+
+			result, err := placementSvc.CreateResource(ctx, resource, nil)
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(err).To(BeAssignableToTypeOf(svcErr))
+			svcErr = err.(*service.ServiceError)
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyError))
+			Expect(svcErr.Message).To(ContainSubstring("policy client communication error"))
+			Expect(svcErr.Message).To(ContainSubstring("connection refused"))
 		})
 
 		It("returns conflict error when duplicate ID is used", func() {
