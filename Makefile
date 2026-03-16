@@ -68,6 +68,7 @@ subsystem-test-down:
 subsystem-test:
 	go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --fail-on-pending -tags=subsystem ./test/subsystem
 
-subsystem-test-full: subsystem-test-up subsystem-test subsystem-test-down
+subsystem-test-full: subsystem-test-up
+	$(MAKE) subsystem-test; rc=$$?; $(MAKE) subsystem-test-down; exit $$rc
 
 .PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api check-aep check-generate-api subsystem-test-up subsystem-test-down subsystem-test subsystem-test-full

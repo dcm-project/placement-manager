@@ -198,7 +198,7 @@ var _ = Describe("Placement API", func() {
 			Expect(len(listResp.JSON200.Resources)).To(BeNumerically(">", 0))
 		})
 
-		It("paginates results", func() {
+		It("paginates results with NextPageToken", func() {
 			for i := 0; i < 3; i++ {
 				body := v1alpha1.Resource{
 					CatalogItemInstanceId: "catalog-page-" + uuid.New().String()[:8],
@@ -211,17 +211,35 @@ var _ = Describe("Placement API", func() {
 				stubPolicyEvaluateApproved("test-provider")
 				stubSPRMCreateResource()
 
-				_, err := apiClient.CreateResourceWithResponse(context.Background(), nil, body)
+				resp, err := apiClient.CreateResourceWithResponse(context.Background(), nil, body)
 				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.StatusCode()).To(Equal(http.StatusCreated))
 			}
 
 			pageSize := 1
 			params := &v1alpha1.ListResourcesParams{MaxPageSize: &pageSize}
-			listResp, err := apiClient.ListResourcesWithResponse(context.Background(), params)
+
+			// Fetch first page
+			page1, err := apiClient.ListResourcesWithResponse(context.Background(), params)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(listResp.StatusCode()).To(Equal(http.StatusOK))
-			Expect(len(listResp.JSON200.Resources)).To(Equal(1))
-			Expect(listResp.JSON200.NextPageToken).NotTo(BeNil())
+			Expect(page1.StatusCode()).To(Equal(http.StatusOK))
+			Expect(page1.JSON200.Resources).To(HaveLen(1))
+			Expect(page1.JSON200.NextPageToken).NotTo(BeNil())
+			firstID := *page1.JSON200.Resources[0].Id
+
+			// Fetch second page using the token
+			params2 := &v1alpha1.ListResourcesParams{
+				MaxPageSize: &pageSize,
+				PageToken:   page1.JSON200.NextPageToken,
+			}
+			page2, err := apiClient.ListResourcesWithResponse(context.Background(), params2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(page2.StatusCode()).To(Equal(http.StatusOK))
+			Expect(page2.JSON200.Resources).To(HaveLen(1))
+			secondID := *page2.JSON200.Resources[0].Id
+
+			// Pages return different resources
+			Expect(firstID).NotTo(Equal(secondID))
 		})
 	})
 
