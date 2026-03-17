@@ -35,6 +35,7 @@ type Resource interface {
 	Create(ctx context.Context, request model.Resource) (*model.Resource, error)
 	Delete(ctx context.Context, id string) error
 	Get(ctx context.Context, id string) (*model.Resource, error)
+	UpdateStatus(ctx context.Context, instanceID string, status string, statusMessage string) error
 }
 
 type ResourceStore struct {
@@ -111,6 +112,23 @@ func (s *ResourceStore) Create(ctx context.Context, request model.Resource) (*mo
 
 func (s *ResourceStore) Delete(ctx context.Context, id string) error {
 	result := s.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Resource{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrResourceNotFound
+	}
+	return nil
+}
+
+func (s *ResourceStore) UpdateStatus(ctx context.Context, instanceID string, status string, statusMessage string) error {
+	result := s.db.WithContext(ctx).
+		Model(&model.Resource{}).
+		Where("id = ?", instanceID).
+		Updates(map[string]any{
+			"status":         status,
+			"status_message": statusMessage,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

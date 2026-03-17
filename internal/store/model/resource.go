@@ -11,6 +11,8 @@ type Resource struct {
 	Spec                  map[string]any `gorm:"column:original_spec;type:jsonb;serializer:json;not null"`
 	ProviderName          *string        `gorm:"column:provider_name;not null"`
 	ApprovalStatus        *string        `gorm:"column:approval_status;not null"`
+	Status                string         `gorm:"column:status"`
+	StatusMessage         string         `gorm:"column:status_message"`
 	Path                  string         `gorm:"column:path;not null"`
 	CreateTime            time.Time      `gorm:"column:create_time;autoCreateTime"`
 	UpdateTime            time.Time      `gorm:"column:update_time;autoUpdateTime"`

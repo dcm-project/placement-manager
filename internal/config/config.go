@@ -12,6 +12,7 @@ type Config struct {
 	Database *DBConfig
 	Policy   *PolicyConfig
 	SPRM     *SPRMConfig
+	NATS     *NATSConfig
 }
 
 type ServiceConfig struct {
@@ -39,6 +40,14 @@ type PolicyConfig struct {
 type SPRMConfig struct {
 	URL     string        `envconfig:"SP_RESOURCE_MANAGER_URL" default:"http://localhost:8082"`
 	Timeout time.Duration `envconfig:"SP_RESOURCE_MANAGER_TIMEOUT" default:"10s"`
+}
+
+// NATSConfig holds NATS messaging configuration
+type NATSConfig struct {
+	URL          string `envconfig:"NATS_URL" default:"nats://localhost:4222"`
+	Subject      string `envconfig:"NATS_STATUS_SUBJECT" default:"dcm.*"`
+	StreamName   string `envconfig:"NATS_STREAM_NAME" default:"dcm-status"`
+	ConsumerName string `envconfig:"NATS_CONSUMER_NAME" default:"placement-manager"`
 }
 
 // Load reads configuration from environment variables

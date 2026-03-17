@@ -259,4 +259,35 @@ var _ = Describe("Resource Store", func() {
 			Expect(err).To(Equal(store.ErrResourceNotFound))
 		})
 	})
+
+	Describe("UpdateStatus", func() {
+		It("updates status and status message by instance ID", func() {
+			provider := "test-provider"
+			approval := "APPROVED"
+			instanceID := "instance-status-1"
+			r := model.Resource{
+				ID:                    uuid.New().String(),
+				CatalogItemInstanceId: instanceID,
+				Spec:                  map[string]any{"cpu": "2"},
+				ProviderName:          &provider,
+				ApprovalStatus:        &approval,
+				Path:                  "resources/" + uuid.New().String(),
+			}
+			_, err := requestStore.Create(ctx, r)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = requestStore.UpdateStatus(ctx, instanceID, "RUNNING", "VM is running")
+			Expect(err).NotTo(HaveOccurred())
+
+			found, err := requestStore.Get(ctx, r.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found.Status).To(Equal("RUNNING"))
+			Expect(found.StatusMessage).To(Equal("VM is running"))
+		})
+
+		It("returns ErrResourceNotFound for non-existent instance", func() {
+			err := requestStore.UpdateStatus(ctx, "non-existent", "RUNNING", "message")
+			Expect(err).To(Equal(store.ErrResourceNotFound))
+		})
+	})
 })

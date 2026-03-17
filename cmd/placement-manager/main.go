@@ -10,6 +10,7 @@ import (
 
 	"github.com/dcm-project/placement-manager/internal/apiserver"
 	"github.com/dcm-project/placement-manager/internal/config"
+	"github.com/dcm-project/placement-manager/internal/consumer"
 	"github.com/dcm-project/placement-manager/internal/handlers"
 	"github.com/dcm-project/placement-manager/internal/policy"
 	"github.com/dcm-project/placement-manager/internal/service"
@@ -51,6 +52,17 @@ func main() {
 	// Initialize service
 	placementService := service.NewPlacementService(dataStore, policyClient, sprmClient)
 
+	// Initialize StatusConsumer
+	statusConsumer, err := consumer.New(cfg.NATS.URL, cfg.NATS.Subject, dataStore,
+		consumer.WithStreamName(cfg.NATS.StreamName),
+		consumer.WithConsumerName(cfg.NATS.ConsumerName),
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize status consumer: %v", err)
+	}
+	log.Printf("Status consumer initialized with NATS URL: %s (stream=%s, consumer=%s)",
+		cfg.NATS.URL, cfg.NATS.StreamName, cfg.NATS.ConsumerName)
+
 	// Create TCP listener
 	listener, err := net.Listen("tcp", cfg.Service.Address)
 	if err != nil {
@@ -66,6 +78,12 @@ func main() {
 	// Setup graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	// Start StatusConsumer
+	if err := statusConsumer.Start(ctx); err != nil {
+		log.Fatalf("Failed to start status consumer: %v", err)
+	}
+	defer statusConsumer.Stop()
 
 	log.Printf("Starting Placement Manager API server on %s", listener.Addr().String())
 	if err := srv.Run(ctx); err != nil {
