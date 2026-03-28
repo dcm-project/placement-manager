@@ -48,9 +48,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = c.CreateResource(ctx, sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-timeout",
-				Spec:                  map[string]any{"cpu": 2},
-				ProviderName:          "test-provider",
+				ID:           "resource-timeout",
+				Spec:         map[string]any{"cpu": 2},
+				ProviderName: "test-provider",
 			})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("Client.Timeout"))
@@ -77,7 +77,7 @@ var _ = Describe("SPRM Client", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				Expect(r.Method).To(Equal("POST"))
 				Expect(r.URL.Path).To(Equal("/api/v1alpha1/service-type-instances"))
-				Expect(r.URL.Query().Get("id")).To(Equal("catalog-123"))
+				Expect(r.URL.Query().Get("id")).To(Equal("resource-123"))
 
 				// Decode and verify the request body
 				var requestBody sprmv1alpha1.ServiceTypeInstance
@@ -110,9 +110,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			req := sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-123",
-				Spec:                  map[string]any{"cpu": 2, "memory": "4GB"},
-				ProviderName:          "test-provider",
+				ID:           "resource-123",
+				Spec:         map[string]any{"cpu": 2, "memory": "4GB"},
+				ProviderName: "test-provider",
 			}
 
 			resp, err := client.CreateResource(ctx, req)
@@ -133,9 +133,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			req := sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-123",
-				Spec:                  map[string]any{},
-				ProviderName:          "test-provider",
+				ID:           "resource-123",
+				Spec:         map[string]any{},
+				ProviderName: "test-provider",
 			}
 
 			_, err = client.CreateResource(ctx, req)
@@ -158,9 +158,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			req := sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-123",
-				Spec:                  map[string]any{"cpu": 2},
-				ProviderName:          "test-provider",
+				ID:           "resource-123",
+				Spec:         map[string]any{"cpu": 2},
+				ProviderName: "test-provider",
 			}
 
 			_, err = client.CreateResource(ctx, req)
@@ -183,9 +183,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			req := sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-dup",
-				Spec:                  map[string]any{"cpu": 2},
-				ProviderName:          "test-provider",
+				ID:           "resource-dup",
+				Spec:         map[string]any{"cpu": 2},
+				ProviderName: "test-provider",
 			}
 
 			_, err = client.CreateResource(ctx, req)
@@ -208,9 +208,9 @@ var _ = Describe("SPRM Client", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			req := sprm.CreateResourceRequest{
-				CatalogItemInstanceId: "catalog-invalid",
-				Spec:                  map[string]any{"invalid": "spec"},
-				ProviderName:          "test-provider",
+				ID:           "resource-invalid",
+				Spec:         map[string]any{"invalid": "spec"},
+				ProviderName: "test-provider",
 			}
 
 			_, err = client.CreateResource(ctx, req)

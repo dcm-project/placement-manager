@@ -201,6 +201,76 @@ func verifySPRMDeleteResourceCalled(expectedCount int) {
 	verifyWireMockRequestCount(sprmWireMockURL, "DELETE", "/api/v1alpha1/service-type-instances/.*", expectedCount)
 }
 
+func stubSPRMDeleteResourceDeferred() {
+	stub := map[string]any{
+		"request": map[string]any{
+			"method":         "DELETE",
+			"urlPathPattern": "/api/v1alpha1/service-type-instances/.*",
+			"queryParameters": map[string]any{
+				"deferred": map[string]any{
+					"equalTo": "true",
+				},
+			},
+		},
+		"response": map[string]any{
+			"status": 204,
+		},
+	}
+	postWireMockMapping(sprmWireMockURL, stub)
+}
+
+func stubSPRMDeleteResourceDeferredFailure() {
+	stub := map[string]any{
+		"request": map[string]any{
+			"method":         "DELETE",
+			"urlPathPattern": "/api/v1alpha1/service-type-instances/.*",
+			"queryParameters": map[string]any{
+				"deferred": map[string]any{
+					"equalTo": "true",
+				},
+			},
+		},
+		"response": map[string]any{
+			"status": 500,
+			"headers": map[string]string{
+				"Content-Type": "application/json",
+			},
+			"jsonBody": map[string]any{
+				"type":   "internal-error",
+				"title":  "Internal Server Error",
+				"status": 500,
+			},
+		},
+	}
+	postWireMockMapping(sprmWireMockURL, stub)
+}
+
+func verifySPRMDeleteResourceDeferredCalled(expectedCount int) {
+	body := map[string]any{
+		"method":         "DELETE",
+		"urlPathPattern": "/api/v1alpha1/service-type-instances/.*",
+		"queryParameters": map[string]any{
+			"deferred": map[string]any{
+				"equalTo": "true",
+			},
+		},
+	}
+	data, err := json.Marshal(body)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	req, err := http.NewRequest(http.MethodPost, sprmWireMockURL+"/__admin/requests/count", bytes.NewReader(data))
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	defer resp.Body.Close()
+
+	var result map[string]any
+	ExpectWithOffset(1, json.NewDecoder(resp.Body).Decode(&result)).To(Succeed())
+	ExpectWithOffset(1, int(result["count"].(float64))).To(Equal(expectedCount))
+}
+
 // --- Generic WireMock helpers ---
 
 func resetWireMock(baseURL string) {

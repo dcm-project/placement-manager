@@ -102,3 +102,24 @@ func (h *Handler) DeleteResource(ctx context.Context, request server.DeleteResou
 	log.Info("Resource deleted", "resource_id", request.ResourceId)
 	return server.DeleteResource204Response{}, nil
 }
+
+// RehydrateResource re-evaluates and recreates a resource with a new ID.
+func (h *Handler) RehydrateResource(ctx context.Context, request server.RehydrateResourceRequestObject) (server.RehydrateResourceResponseObject, error) {
+	log := logging.FromContext(ctx)
+	log.Debug("RehydrateResource request received",
+		"resource_id", request.ResourceId,
+		"new_instance_id", request.Body.NewInstanceId,
+	)
+
+	result, err := h.placementService.RehydrateResource(ctx, request.ResourceId, request.Body.NewInstanceId)
+	if err != nil {
+		logServiceError(ctx, "RehydrateResource failed", err, "resource_id", request.ResourceId)
+		return handleRehydrateResourceError(err), nil
+	}
+
+	log.Info("Resource rehydrated",
+		"old_resource_id", request.ResourceId,
+		"new_resource_id", *result.Id,
+	)
+	return server.RehydrateResource200JSONResponse(*result), nil
+}

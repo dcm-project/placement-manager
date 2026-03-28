@@ -89,6 +89,34 @@ func handleGetResourceError(err error) server.GetResourceResponseObject {
 	}
 }
 
+// handleRehydrateResourceError converts a service error to a RehydrateResource response.
+func handleRehydrateResourceError(err error) server.RehydrateResourceResponseObject {
+	var svcErr *service.ServiceError
+	if errors.As(err, &svcErr) {
+		switch svcErr.Code {
+		case service.ErrCodeValidation:
+			return server.RehydrateResource400ApplicationProblemPlusJSONResponse(newError("validation-error", "Validation failed", svcErr.Message, 400))
+		case service.ErrCodeNotFound:
+			return server.RehydrateResource404ApplicationProblemPlusJSONResponse(newError("not-found", "Resource not found", svcErr.Message, 404))
+		case service.ErrCodePolicyRejected:
+			return server.RehydrateResource406ApplicationProblemPlusJSONResponse(newError("policy-rejected", "Policy rejected request", svcErr.Message, 406))
+		case service.ErrCodeConflict, service.ErrCodePolicyConflict:
+			return server.RehydrateResource409ApplicationProblemPlusJSONResponse(newError("resource-conflict", "Resource conflict", svcErr.Message, 409))
+		case service.ErrCodeProviderError:
+			return server.RehydrateResource422ApplicationProblemPlusJSONResponse(newError("provider-error", "Provider error", svcErr.Message, 422))
+		case service.ErrCodeInternal, service.ErrCodePolicyError, service.ErrCodePolicyInternalError, service.ErrCodeSPRMError:
+			return server.RehydrateResourcedefaultApplicationProblemPlusJSONResponse{
+				Body:       newError("internal-error", "Internal error", svcErr.Message, 500),
+				StatusCode: 500,
+			}
+		}
+	}
+	return server.RehydrateResourcedefaultApplicationProblemPlusJSONResponse{
+		Body:       newError("rehydrate-error", "Failed to rehydrate resource", err.Error(), 500),
+		StatusCode: 500,
+	}
+}
+
 // handleDeleteResourceError converts a service error to a DeleteResource response.
 func handleDeleteResourceError(err error) server.DeleteResourceResponseObject {
 	var svcErr *service.ServiceError
