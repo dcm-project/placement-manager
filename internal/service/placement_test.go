@@ -38,8 +38,9 @@ func (m *mockPolicyClient) Evaluate(ctx context.Context, req policy.EvaluateRequ
 
 // mockSPRMClient is a mock implementation of sprm.Client for testing
 type mockSPRMClient struct {
-	CreateResourceFunc func(ctx context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error)
-	DeleteResourceFunc func(ctx context.Context, catalogItemInstanceId string) error
+	CreateResourceFunc         func(ctx context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error)
+	DeleteResourceFunc         func(ctx context.Context, resourceId string) error
+	DeleteResourceDeferredFunc func(ctx context.Context, resourceId string) error
 }
 
 // CreateResource calls the mock function if set, otherwise returns a default success response
@@ -49,17 +50,24 @@ func (m *mockSPRMClient) CreateResource(ctx context.Context, req sprm.CreateReso
 	}
 	// Default: successful creation
 	return &sprm.CreateResourceResponse{
-		ID:     req.CatalogItemInstanceId,
+		ID:     req.ID,
 		Status: "provisioning",
 	}, nil
 }
 
 // DeleteResource calls the mock function if set, otherwise returns success
-func (m *mockSPRMClient) DeleteResource(ctx context.Context, catalogItemInstanceId string) error {
+func (m *mockSPRMClient) DeleteResource(ctx context.Context, resourceId string) error {
 	if m.DeleteResourceFunc != nil {
-		return m.DeleteResourceFunc(ctx, catalogItemInstanceId)
+		return m.DeleteResourceFunc(ctx, resourceId)
 	}
-	// Default: successful deletion
+	return nil
+}
+
+// DeleteResourceDeferred calls the mock function if set, otherwise returns success
+func (m *mockSPRMClient) DeleteResourceDeferred(ctx context.Context, resourceId string) error {
+	if m.DeleteResourceDeferredFunc != nil {
+		return m.DeleteResourceDeferredFunc(ctx, resourceId)
+	}
 	return nil
 }
 
@@ -651,6 +659,235 @@ var _ = Describe("PlacementService", func() {
 			result, err := placementSvc.GetResource(ctx, *created.Id)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
+		})
+	})
+
+	Describe("RehydrateResource", func() {
+		var (
+			oldResourceID string
+			catalogID     string
+		)
+
+		BeforeEach(func() {
+			oldResourceID = "old-resource-id"
+			catalogID = "catalog-rehydrate"
+
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return &policy.EvaluateResponse{
+					Status:           "APPROVED",
+					SelectedProvider: "test-provider",
+					EvaluatedSpec:    req.Spec,
+				}, nil
+			}
+
+			resource := &server.Resource{
+				CatalogItemInstanceId: catalogID,
+				Spec:                  map[string]any{"cpu": 2, "memory": "4GB"},
+			}
+			_, err := placementSvc.CreateResource(ctx, resource, &oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("rehydrates a resource successfully", func() {
+			newInstanceID := "new-resource-id"
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, newInstanceID)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+			Expect(*result.Id).To(Equal(newInstanceID))
+			Expect(result.CatalogItemInstanceId).To(Equal(catalogID))
+			Expect(result.Spec).To(HaveKey("cpu"))
+			Expect(result.Spec).To(HaveKey("memory"))
+			Expect(*result.ApprovalStatus).To(Equal("APPROVED"))
+			Expect(*result.ProviderName).To(Equal("test-provider"))
+
+			// Verify old resource is gone
+			_, err = placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).To(HaveOccurred())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodeNotFound))
+
+			// Verify new resource exists
+			retrieved, err := placementSvc.GetResource(ctx, newInstanceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved.CatalogItemInstanceId).To(Equal(catalogID))
+		})
+
+		It("re-evaluates policy and assigns new provider", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return &policy.EvaluateResponse{
+					Status:           "APPROVED",
+					SelectedProvider: "new-provider",
+					EvaluatedSpec:    req.Spec,
+				}, nil
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-provider")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(*result.ProviderName).To(Equal("new-provider"))
+		})
+
+		It("preserves original spec and sends evaluated spec to SPRM", func() {
+			var capturedSPRMSpec map[string]any
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				modifiedSpec := make(map[string]any)
+				for k, v := range req.Spec {
+					modifiedSpec[k] = v
+				}
+				modifiedSpec["policy_added"] = "value"
+				return &policy.EvaluateResponse{
+					Status:           "MODIFIED",
+					SelectedProvider: "test-provider",
+					EvaluatedSpec:    modifiedSpec,
+				}, nil
+			}
+			mockSPRM.CreateResourceFunc = func(_ context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error) {
+				capturedSPRMSpec = req.Spec
+				return &sprm.CreateResourceResponse{ID: req.ID, Status: "provisioning"}, nil
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-spec")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(*result.ApprovalStatus).To(Equal("MODIFIED"))
+			// DB stores original spec (no policy_added field)
+			Expect(result.Spec).NotTo(HaveKey("policy_added"))
+			Expect(result.Spec).To(HaveKey("cpu"))
+			// SPRM received the evaluated spec (with policy_added field)
+			Expect(capturedSPRMSpec).To(HaveKey("policy_added"))
+		})
+
+		It("returns not found when old resource does not exist", func() {
+			result, err := placementSvc.RehydrateResource(ctx, "non-existent", "new-id")
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodeNotFound))
+		})
+
+		It("returns error when policy rejects re-evaluation (406)", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 406, Body: "rejected"}
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-406")
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyRejected))
+
+			// Old resource unchanged
+			old, err := placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(old).NotTo(BeNil())
+		})
+
+		It("returns error when policy fails (500)", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 500, Body: "internal error"}
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-500")
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
+
+			// Old resource unchanged
+			old, err := placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(old).NotTo(BeNil())
+		})
+
+		It("returns error when policy returns empty provider", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return &policy.EvaluateResponse{
+					Status:           "APPROVED",
+					SelectedProvider: "",
+					EvaluatedSpec:    req.Spec,
+				}, nil
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-empty")
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
+		})
+
+		It("returns conflict when new instance ID already exists", func() {
+			// Create another resource with the ID we want to rehydrate to
+			existingID := "existing-id"
+			resource := &server.Resource{
+				CatalogItemInstanceId: "catalog-existing",
+				Spec:                  map[string]any{"cpu": 1},
+			}
+			_, err := placementSvc.CreateResource(ctx, resource, &existingID)
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, existingID)
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodeConflict))
+
+			// Old resource unchanged
+			old, err := placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(old).NotTo(BeNil())
+		})
+
+		It("returns error and rolls back when SPRM creation fails", func() {
+			mockSPRM.CreateResourceFunc = func(_ context.Context, _ sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error) {
+				return nil, &sprm.HTTPError{StatusCode: 500, Body: "sprm error"}
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-sprm-fail")
+
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			var svcErr *service.ServiceError
+			Expect(errors.As(err, &svcErr)).To(BeTrue())
+			Expect(svcErr.Code).To(Equal(service.ErrCodeSPRMError))
+
+			// Old resource unchanged
+			old, err := placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(old).NotTo(BeNil())
+
+			// New resource was rolled back
+			_, err = placementSvc.GetResource(ctx, "new-id-sprm-fail")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("succeeds even when SPRM deferred delete fails", func() {
+			mockSPRM.DeleteResourceDeferredFunc = func(_ context.Context, _ string) error {
+				return &sprm.HTTPError{StatusCode: 500, Body: "delete failed"}
+			}
+
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, "new-id-deferred-fail")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+			Expect(*result.Id).To(Equal("new-id-deferred-fail"))
+
+			// New resource exists
+			retrieved, err := placementSvc.GetResource(ctx, "new-id-deferred-fail")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved).NotTo(BeNil())
 		})
 	})
 })
