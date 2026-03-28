@@ -686,7 +686,7 @@ func (r GetResourceResponse) StatusCode() int {
 type RehydrateResourceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON202                       *Resource
+	JSON200                       *Resource
 	ApplicationproblemJSON400     *Error
 	ApplicationproblemJSON404     *Error
 	ApplicationproblemJSON406     *Error
@@ -1016,12 +1016,12 @@ func ParseRehydrateResourceResponse(rsp *http.Response) (*RehydrateResourceRespo
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Resource
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON202 = &dest
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest Error

@@ -797,16 +797,16 @@ type RehydrateResourceResponseObject interface {
 	VisitRehydrateResourceResponse(w http.ResponseWriter) error
 }
 
-type RehydrateResource202JSONResponse Resource
+type RehydrateResource200JSONResponse Resource
 
-func (response RehydrateResource202JSONResponse) VisitRehydrateResourceResponse(w http.ResponseWriter) error {
+func (response RehydrateResource200JSONResponse) VisitRehydrateResourceResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(202)
+	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err
 }

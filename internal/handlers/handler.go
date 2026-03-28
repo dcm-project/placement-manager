@@ -121,5 +121,5 @@ func (h *Handler) RehydrateResource(ctx context.Context, request server.Rehydrat
 		"old_resource_id", request.ResourceId,
 		"new_resource_id", *result.Id,
 	)
-	return server.RehydrateResource202JSONResponse(*result), nil
+	return server.RehydrateResource200JSONResponse(*result), nil
 }

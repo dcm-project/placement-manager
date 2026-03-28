@@ -244,7 +244,7 @@ var _ = Describe("Placement API", func() {
 	})
 
 	Describe("RehydrateResource", func() {
-		It("rehydrates a resource and returns 202", func() {
+		It("rehydrates a resource and returns 200", func() {
 			// Create a resource first
 			body := v1alpha1.Resource{
 				CatalogItemInstanceId: "catalog-rehydrate-" + uuid.New().String()[:8],
@@ -272,11 +272,11 @@ var _ = Describe("Placement API", func() {
 
 			rehydrateResp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(rehydrateResp.StatusCode()).To(Equal(http.StatusAccepted))
-			Expect(rehydrateResp.JSON202).NotTo(BeNil())
-			Expect(*rehydrateResp.JSON202.Id).To(Equal(newInstanceID))
-			Expect(rehydrateResp.JSON202.CatalogItemInstanceId).To(Equal(body.CatalogItemInstanceId))
-			Expect(*rehydrateResp.JSON202.ProviderName).To(Equal("rehydrated-provider"))
+			Expect(rehydrateResp.StatusCode()).To(Equal(http.StatusOK))
+			Expect(rehydrateResp.JSON200).NotTo(BeNil())
+			Expect(*rehydrateResp.JSON200.Id).To(Equal(newInstanceID))
+			Expect(rehydrateResp.JSON200.CatalogItemInstanceId).To(Equal(body.CatalogItemInstanceId))
+			Expect(*rehydrateResp.JSON200.ProviderName).To(Equal("rehydrated-provider"))
 
 			// Verify policy was called for re-evaluation
 			verifyPolicyEvaluateCalled(1)
@@ -405,9 +405,9 @@ var _ = Describe("Placement API", func() {
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(resp.StatusCode()).To(Equal(http.StatusAccepted))
-			Expect(resp.JSON202).NotTo(BeNil())
-			Expect(*resp.JSON202.Id).To(Equal(newInstanceID))
+			Expect(resp.StatusCode()).To(Equal(http.StatusOK))
+			Expect(resp.JSON200).NotTo(BeNil())
+			Expect(*resp.JSON200.Id).To(Equal(newInstanceID))
 
 			// Verify new resource exists
 			resetPolicyWireMock()
