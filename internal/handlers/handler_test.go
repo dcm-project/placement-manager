@@ -38,8 +38,9 @@ func (m *mockPolicyClient) Evaluate(ctx context.Context, req policy.EvaluateRequ
 
 // mockSPRMClient is a mock implementation of sprm.Client for testing
 type mockSPRMClient struct {
-	CreateResourceFunc func(ctx context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error)
-	DeleteResourceFunc func(ctx context.Context, catalogItemInstanceId string) error
+	CreateResourceFunc         func(ctx context.Context, req sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error)
+	DeleteResourceFunc         func(ctx context.Context, resourceId string) error
+	DeleteResourceDeferredFunc func(ctx context.Context, resourceId string) error
 }
 
 // CreateResource calls the mock function if set, otherwise returns a default success response
@@ -49,17 +50,24 @@ func (m *mockSPRMClient) CreateResource(ctx context.Context, req sprm.CreateReso
 	}
 	// Default: successful creation
 	return &sprm.CreateResourceResponse{
-		ID:     req.CatalogItemInstanceId,
+		ID:     req.ID,
 		Status: "pending",
 	}, nil
 }
 
 // DeleteResource calls the mock function if set, otherwise returns success
-func (m *mockSPRMClient) DeleteResource(ctx context.Context, catalogItemInstanceId string) error {
+func (m *mockSPRMClient) DeleteResource(ctx context.Context, resourceId string) error {
 	if m.DeleteResourceFunc != nil {
-		return m.DeleteResourceFunc(ctx, catalogItemInstanceId)
+		return m.DeleteResourceFunc(ctx, resourceId)
 	}
-	// Default: successful deletion
+	return nil
+}
+
+// DeleteResourceDeferred calls the mock function if set, otherwise returns success
+func (m *mockSPRMClient) DeleteResourceDeferred(ctx context.Context, resourceId string) error {
+	if m.DeleteResourceDeferredFunc != nil {
+		return m.DeleteResourceDeferredFunc(ctx, resourceId)
+	}
 	return nil
 }
 
