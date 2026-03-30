@@ -49,7 +49,7 @@ func (m *mockSPRMClient) CreateResource(ctx context.Context, req sprm.CreateReso
 	}
 	// Default: successful creation
 	return &sprm.CreateResourceResponse{
-		ID:     req.CatalogItemInstanceId,
+		ID:     req.ResourceId,
 		Status: "pending",
 	}, nil
 }

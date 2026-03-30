@@ -15,9 +15,9 @@ import (
 
 // CreateResourceRequest is the request body for creating a resource in SPRM
 type CreateResourceRequest struct {
-	CatalogItemInstanceId string         `json:"catalog_item_instance_id"`
-	Spec                  map[string]any `json:"spec"`
-	ProviderName          string         `json:"provider_name"`
+	ResourceId   string         `json:"resource_id"`
+	Spec         map[string]any `json:"spec"`
+	ProviderName string         `json:"provider_name"`
 }
 
 // CreateResourceResponse is the response from creating a resource
@@ -71,9 +71,9 @@ func (c *client) CreateResource(ctx context.Context, req CreateResourceRequest) 
 		Spec:         req.Spec,
 	}
 
-	// Use CatalogItemInstanceId as the query parameter id
+	// Use ResourceId as the query parameter id
 	params := &sprmv1alpha1.CreateInstanceParams{
-		Id: &req.CatalogItemInstanceId,
+		Id: &req.ResourceId,
 	}
 
 	// Call the SP Resource Manager API
@@ -115,10 +115,10 @@ func mapCreateInstanceResponse(instance *sprmv1alpha1.ServiceTypeInstance) *Crea
 }
 
 // DeleteResource deletes a resource from the service provider
-func (c *client) DeleteResource(ctx context.Context, catalogItemInstanceId string) error {
+func (c *client) DeleteResource(ctx context.Context, resourceID string) error {
 	// Call the SPRM API to delete the instance
 	operation := func() (any, error) {
-		resp, err := c.sprm.DeleteInstanceWithResponse(ctx, catalogItemInstanceId)
+		resp, err := c.sprm.DeleteInstanceWithResponse(ctx, resourceID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to call sprm delete: %w", err)
 		}

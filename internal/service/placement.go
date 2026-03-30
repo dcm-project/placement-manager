@@ -94,9 +94,9 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 
 	// Send request to SP Resource Manager
 	sprmRequest := sprm.CreateResourceRequest{
-		CatalogItemInstanceId: created.CatalogItemInstanceId,
-		Spec:                  policyResponse.EvaluatedSpec,
-		ProviderName:          providerName,
+		ResourceId:   created.ID,
+		Spec:         policyResponse.EvaluatedSpec,
+		ProviderName: providerName,
 	}
 
 	log.Debug("Provisioning resource via SPRM",
@@ -200,7 +200,7 @@ func (s *PlacementService) DeleteResource(ctx context.Context, requestID string)
 	log := logging.FromContext(ctx)
 	log.Debug("Deleting resource", "resource_id", requestID)
 
-	// First, get the resource to obtain the CatalogItemInstanceId
+	// First, get the resource to obtain the ResourceId
 	resource, err := s.store.Resource().Get(ctx, requestID)
 	if err != nil {
 		if errors.Is(err, store.ErrResourceNotFound) {
@@ -216,7 +216,7 @@ func (s *PlacementService) DeleteResource(ctx context.Context, requestID string)
 		"catalog_item_instance_id", resource.CatalogItemInstanceId,
 	)
 
-	err = s.sprm.DeleteResource(ctx, resource.CatalogItemInstanceId)
+	err = s.sprm.DeleteResource(ctx, resource.ID)
 	if err != nil {
 		log.Error("SPRM deletion failed, preserving DB record", "resource_id", requestID, "error", err)
 		return handleSPRMError(err)
