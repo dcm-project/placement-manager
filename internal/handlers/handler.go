@@ -108,10 +108,10 @@ func (h *Handler) RehydrateResource(ctx context.Context, request server.Rehydrat
 	log := logging.FromContext(ctx)
 	log.Debug("RehydrateResource request received",
 		"resource_id", request.ResourceId,
-		"new_instance_id", request.Body.NewInstanceId,
+		"new_resource_id", request.Body.NewResourceId,
 	)
 
-	result, err := h.placementService.RehydrateResource(ctx, request.ResourceId, request.Body.NewInstanceId)
+	result, err := h.placementService.RehydrateResource(ctx, request.ResourceId, request.Body.NewResourceId)
 	if err != nil {
 		logServiceError(ctx, "RehydrateResource failed", err, "resource_id", request.ResourceId)
 		return handleRehydrateResourceError(err), nil

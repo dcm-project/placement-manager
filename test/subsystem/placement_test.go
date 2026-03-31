@@ -265,16 +265,16 @@ var _ = Describe("Placement API", func() {
 			stubSPRMDeleteResourceDeferred()
 
 			// Rehydrate the resource
-			newInstanceID := uuid.New().String()
+			newResourceID := uuid.New().String()
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: newInstanceID,
+				NewResourceId: newResourceID,
 			}
 
 			rehydrateResp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(rehydrateResp.StatusCode()).To(Equal(http.StatusOK))
 			Expect(rehydrateResp.JSON200).NotTo(BeNil())
-			Expect(*rehydrateResp.JSON200.Id).To(Equal(newInstanceID))
+			Expect(*rehydrateResp.JSON200.Id).To(Equal(newResourceID))
 			Expect(rehydrateResp.JSON200.CatalogItemInstanceId).To(Equal(body.CatalogItemInstanceId))
 			Expect(*rehydrateResp.JSON200.ProviderName).To(Equal("rehydrated-provider"))
 
@@ -291,7 +291,7 @@ var _ = Describe("Placement API", func() {
 			Expect(getResp.StatusCode()).To(Equal(http.StatusNotFound))
 
 			// Verify new resource exists
-			getNewResp, err := apiClient.GetResourceWithResponse(context.Background(), newInstanceID)
+			getNewResp, err := apiClient.GetResourceWithResponse(context.Background(), newResourceID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(getNewResp.StatusCode()).To(Equal(http.StatusOK))
 			Expect(getNewResp.JSON200.CatalogItemInstanceId).To(Equal(body.CatalogItemInstanceId))
@@ -299,7 +299,7 @@ var _ = Describe("Placement API", func() {
 
 		It("returns 404 for non-existent resource", func() {
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: uuid.New().String(),
+				NewResourceId: uuid.New().String(),
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), "non-existent-id", rehydrateBody)
@@ -326,7 +326,7 @@ var _ = Describe("Placement API", func() {
 			stubPolicyEvaluateRejected()
 
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: uuid.New().String(),
+				NewResourceId: uuid.New().String(),
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
@@ -362,7 +362,7 @@ var _ = Describe("Placement API", func() {
 			stubSPRMCreateResourceFailure()
 
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: uuid.New().String(),
+				NewResourceId: uuid.New().String(),
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
@@ -378,7 +378,7 @@ var _ = Describe("Placement API", func() {
 			Expect(getResp.StatusCode()).To(Equal(http.StatusOK))
 		})
 
-		It("returns 409 when new_instance_id collides with an existing placement", func() {
+		It("returns 409 when new_resource_id collides with an existing placement", func() {
 			// Create the first resource
 			body := v1alpha1.Resource{
 				CatalogItemInstanceId: "catalog-rehydrate-conflict-" + uuid.New().String()[:8],
@@ -414,7 +414,7 @@ var _ = Describe("Placement API", func() {
 			stubPolicyEvaluateApproved("test-provider")
 
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: existingResourceID,
+				NewResourceId: existingResourceID,
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
@@ -449,7 +449,7 @@ var _ = Describe("Placement API", func() {
 			stubPolicyEvaluateFailure()
 
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: uuid.New().String(),
+				NewResourceId: uuid.New().String(),
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
@@ -488,22 +488,22 @@ var _ = Describe("Placement API", func() {
 			stubSPRMCreateResource()
 			stubSPRMDeleteResourceDeferredFailure()
 
-			newInstanceID := uuid.New().String()
+			newResourceID := uuid.New().String()
 			rehydrateBody := v1alpha1.RehydrateRequest{
-				NewInstanceId: newInstanceID,
+				NewResourceId: newResourceID,
 			}
 
 			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode()).To(Equal(http.StatusOK))
 			Expect(resp.JSON200).NotTo(BeNil())
-			Expect(*resp.JSON200.Id).To(Equal(newInstanceID))
+			Expect(*resp.JSON200.Id).To(Equal(newResourceID))
 
 			// Verify new resource exists
 			resetPolicyWireMock()
 			resetSPRMWireMock()
 
-			getNewResp, err := apiClient.GetResourceWithResponse(context.Background(), newInstanceID)
+			getNewResp, err := apiClient.GetResourceWithResponse(context.Background(), newResourceID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(getNewResp.StatusCode()).To(Equal(http.StatusOK))
 		})

@@ -153,7 +153,7 @@ paths:
       operationId: :RehydrateResource
       description: |
         Re-evaluates an existing resource against current policies and
-        creates a new resource with the provided new_instance_id. The old
+        creates a new resource with the provided new_resource_id. The old
         resource is deleted after the new one is successfully provisioned.
       parameters:
         - $ref: '#/components/parameters/ResourceIdPath'
@@ -189,7 +189,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Conflict - newInstanceId already in use or policy conflict
+          description: Conflict - newResourceId already in use or policy conflict
           content:
             application/problem+json:
               schema:
@@ -368,9 +368,9 @@ components:
       type: object
       description: Request body for resource rehydration
       required:
-        - new_instance_id
+        - new_resource_id
       properties:
-        new_instance_id:
+        new_resource_id:
           type: string
           description: The new resource ID to use for the rehydrated resource
           pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'

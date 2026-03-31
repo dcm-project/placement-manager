@@ -689,13 +689,13 @@ var _ = Describe("PlacementService", func() {
 		})
 
 		It("rehydrates a resource successfully", func() {
-			newInstanceID := "new-resource-id"
+			newResourceID := "new-resource-id"
 
-			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, newInstanceID)
+			result, err := placementSvc.RehydrateResource(ctx, oldResourceID, newResourceID)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).NotTo(BeNil())
-			Expect(*result.Id).To(Equal(newInstanceID))
+			Expect(*result.Id).To(Equal(newResourceID))
 			Expect(result.CatalogItemInstanceId).To(Equal(catalogID))
 			Expect(result.Spec).To(HaveKey("cpu"))
 			Expect(result.Spec).To(HaveKey("memory"))
@@ -710,7 +710,7 @@ var _ = Describe("PlacementService", func() {
 			Expect(svcErr.Code).To(Equal(service.ErrCodeNotFound))
 
 			// Verify new resource exists
-			retrieved, err := placementSvc.GetResource(ctx, newInstanceID)
+			retrieved, err := placementSvc.GetResource(ctx, newResourceID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(retrieved.CatalogItemInstanceId).To(Equal(catalogID))
 		})
@@ -826,7 +826,7 @@ var _ = Describe("PlacementService", func() {
 			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
 		})
 
-		It("returns conflict when new instance ID already exists", func() {
+		It("returns conflict when new resource ID already exists", func() {
 			// Create another resource with the ID we want to rehydrate to
 			existingID := "existing-id"
 			resource := &server.Resource{

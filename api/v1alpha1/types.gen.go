@@ -36,8 +36,8 @@ type Health struct {
 
 // RehydrateRequest Request body for resource rehydration
 type RehydrateRequest struct {
-	// NewInstanceId The new resource ID to use for the rehydrated resource
-	NewInstanceId string `json:"new_instance_id"`
+	// NewResourceId The new resource ID to use for the rehydrated resource
+	NewResourceId string `json:"new_resource_id"`
 }
 
 // Resource Full resource representation

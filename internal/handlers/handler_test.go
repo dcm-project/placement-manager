@@ -634,10 +634,10 @@ var _ = Describe("Handler", func() {
 		})
 
 		It("rehydrates and returns 200", func() {
-			newInstanceID := uuid.New().String()
+			newResourceID := uuid.New().String()
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: newInstanceID},
+				Body:       &server.RehydrateRequest{NewResourceId: newResourceID},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -655,7 +655,7 @@ var _ = Describe("Handler", func() {
 		It("returns 404 for non-existent resource", func() {
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: uuid.New().String(),
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -676,7 +676,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -689,7 +689,7 @@ var _ = Describe("Handler", func() {
 			Expect(*problemResp.Status).To(Equal(406))
 		})
 
-		It("returns 409 when new instance ID already exists", func() {
+		It("returns 409 when new resource ID already exists", func() {
 			// Create another resource with a known ID
 			existingID := uuid.New().String()
 			conflictReq := server.CreateResourceRequestObject{
@@ -702,10 +702,10 @@ var _ = Describe("Handler", func() {
 			_, err := handler.CreateResource(ctx, conflictReq)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Try to rehydrate with the existing resource's ID as new instance ID
+			// Try to rehydrate with the existing resource's ID as new resource ID
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: existingID},
+				Body:       &server.RehydrateRequest{NewResourceId: existingID},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -725,7 +725,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -745,7 +745,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -765,7 +765,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -785,7 +785,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -804,7 +804,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)
@@ -823,7 +823,7 @@ var _ = Describe("Handler", func() {
 
 			req := server.RehydrateResourceRequestObject{
 				ResourceId: oldResourceID,
-				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
 			}
 
 			resp, err := handler.RehydrateResource(ctx, req)

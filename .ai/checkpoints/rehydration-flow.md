@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implemented `POST /resources/{resourceId}:rehydrate` endpoint that re-evaluates an existing resource against current policies and creates a new resource with a new instance ID. The old resource is deleted using deferred deletion for graceful degradation.
+Implemented `POST /resources/{resourceId}:rehydrate` endpoint that re-evaluates an existing resource against current policies and creates a new resource with a new resource ID. The old resource is deleted using deferred deletion for graceful degradation.
 
 ## Design Decisions
 
@@ -64,7 +64,7 @@ POST /api/v1alpha1/resources/{resourceId}:rehydrate
 
 ```json
 {
-  "new_instance_id": "<new-resource-id>"
+  "new_resource_id": "<new-resource-id>"
 }
 ```
 
@@ -76,7 +76,7 @@ POST /api/v1alpha1/resources/{resourceId}:rehydrate
 | 400 | Invalid request |
 | 404 | Old resource not found |
 | 406 | Policy rejected re-evaluation |
-| 409 | New instance ID conflict or policy conflict |
+| 409 | New resource ID conflict or policy conflict |
 | 422 | SPRM provider error |
 | 5xx | Internal / SPRM / policy error |
 
@@ -91,7 +91,7 @@ POST /api/v1alpha1/resources/{resourceId}:rehydrate
 - Policy rejects (406) -> POLICY_REJECTED, old resource unchanged
 - Policy fails (500) -> POLICY_INTERNAL_ERROR, old resource unchanged
 - Policy returns empty provider -> POLICY_INTERNAL_ERROR
-- New instance ID conflict -> CONFLICT, old resource unchanged
+- New resource ID conflict -> CONFLICT, old resource unchanged
 - SPRM creation fails -> error, new DB record rolled back, old resource unchanged
 - SPRM deferred delete fails -> rehydration still succeeds (graceful degradation)
 
