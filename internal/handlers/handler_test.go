@@ -616,6 +616,225 @@ var _ = Describe("Handler", func() {
 		})
 	})
 
+	Describe("RehydrateResource", func() {
+		var oldResourceID string
+
+		BeforeEach(func() {
+			// Create a resource to rehydrate
+			createReq := server.CreateResourceRequestObject{
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-rehydrate",
+					Spec:                  map[string]interface{}{"cpu": 2, "memory": "4GB"},
+				},
+			}
+			createResp, err := handler.CreateResource(ctx, createReq)
+			Expect(err).NotTo(HaveOccurred())
+			created := createResp.(server.CreateResource201JSONResponse)
+			oldResourceID = *created.Id
+		})
+
+		It("rehydrates and returns 200", func() {
+			newInstanceID := uuid.New().String()
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: newInstanceID},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			jsonResp, ok := resp.(server.RehydrateResource200JSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 200 response but got: %T", resp)
+			Expect(jsonResp.Id).NotTo(BeNil())
+			Expect(*jsonResp.Id).NotTo(Equal(oldResourceID))
+			Expect(jsonResp.CatalogItemInstanceId).To(Equal("catalog-rehydrate"))
+			Expect(jsonResp.Spec).To(HaveKey("cpu"))
+			Expect(jsonResp.Spec).To(HaveKey("memory"))
+		})
+
+		It("returns 404 for non-existent resource", func() {
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: uuid.New().String(),
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource404ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 404 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("not-found"))
+			Expect(problemResp.Title).To(Equal("Resource not found"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(404))
+		})
+
+		It("returns 406 when policy rejects rehydration", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 406, Body: "policy rejected rehydration"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource406ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 406 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("policy-rejected"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(406))
+		})
+
+		It("returns 409 when new instance ID already exists", func() {
+			// Create another resource with a known ID
+			existingID := uuid.New().String()
+			conflictReq := server.CreateResourceRequestObject{
+				Params: server.CreateResourceParams{Id: &existingID},
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-conflict-instance",
+					Spec:                  map[string]interface{}{"cpu": 1},
+				},
+			}
+			_, err := handler.CreateResource(ctx, conflictReq)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Try to rehydrate with the existing resource's ID as new instance ID
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: existingID},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource409ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 409 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("resource-conflict"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(409))
+		})
+
+		It("returns 409 when policy conflict detected", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 409, Body: "policy conflict"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource409ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 409 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("resource-conflict"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(409))
+		})
+
+		It("returns 422 when SPRM provider error", func() {
+			mockSPRM.CreateResourceFunc = func(_ context.Context, _ sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error) {
+				return nil, &sprm.HTTPError{StatusCode: 422, Body: "provider error"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource422ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 422 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("provider-error"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(422))
+		})
+
+		It("returns 500 when SPRM internal error", func() {
+			mockSPRM.CreateResourceFunc = func(_ context.Context, _ sprm.CreateResourceRequest) (*sprm.CreateResourceResponse, error) {
+				return nil, &sprm.HTTPError{StatusCode: 500, Body: "SPRM internal error"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			defaultResp, ok := resp.(server.RehydrateResourcedefaultApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 500 response but got: %T", resp)
+			Expect(defaultResp.StatusCode).To(Equal(500))
+			Expect(defaultResp.Body.Type).To(Equal("internal-error"))
+			Expect(defaultResp.Body.Title).To(Equal("Internal error"))
+		})
+
+		It("returns 500 when policy engine internal error", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 500, Body: "policy internal error"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			defaultResp, ok := resp.(server.RehydrateResourcedefaultApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 500 response but got: %T", resp)
+			Expect(defaultResp.StatusCode).To(Equal(500))
+			Expect(defaultResp.Body.Type).To(Equal("internal-error"))
+		})
+
+		It("returns 400 when policy validation fails", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return nil, &policy.HTTPError{StatusCode: 400, Body: "bad request"}
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource400ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 400 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("validation-error"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(400))
+		})
+
+		It("returns 500 when database is closed", func() {
+			sqlDB, _ := db.DB()
+			_ = sqlDB.Close()
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewInstanceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			defaultResp, ok := resp.(server.RehydrateResourcedefaultApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 500 response but got: %T", resp)
+			Expect(defaultResp.StatusCode).To(Equal(500))
+		})
+	})
+
 	Describe("Error Response Structure (RFC 7807)", func() {
 		It("returns proper problem+json structure for validation errors (400)", func() {
 			// Test validation error with invalid page size
