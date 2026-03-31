@@ -121,7 +121,7 @@ func (c *client) DeleteResource(ctx context.Context, resourceId string) error {
 }
 
 // DeleteResourceDeferred deletes a resource with deferred=true, so deletion
-// failures are recorded in a cleanup queue instead of returning an error.
+// failures are recorded in the SPRM cleanup queue instead of returning an error.
 func (c *client) DeleteResourceDeferred(ctx context.Context, resourceId string) error {
 	deferred := true
 	params := &sprmv1alpha1.DeleteInstanceParams{Deferred: &deferred}
