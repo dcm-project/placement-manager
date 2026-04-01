@@ -288,6 +288,27 @@ GitHub Actions workflows:
 | `check-aep.yaml`       | OpenAPI spec changes | AEP standards compliance         |
 | `build-push-quay.yaml` | Releases             | Build and push container image   |
 
+### Releasing
+
+Images are pushed to `quay.io/dcm-project/placement-manager`.
+
+#### Branch-based builds (development / QE)
+
+Create a version branch. Every push to it rebuilds and pushes 
+the image with that branch name as the tag:
+
+```bash
+git checkout -b v0.0.1
+git push origin v0.0.1    # triggers build → quay.io/dcm-project/placement-manager:v0.0.1
+```
+
+This does **not** update the `latest` tag, so `main` builds remain unaffected.
+
+#### Version convention
+
+Follow [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH` (e.g. `v0.0.1`, `v1.2.0`). 
+All version identifiers must start with `v`.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) for details.
