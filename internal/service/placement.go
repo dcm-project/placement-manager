@@ -11,6 +11,7 @@ import (
 	"github.com/dcm-project/placement-manager/internal/policy"
 	"github.com/dcm-project/placement-manager/internal/sprm"
 	"github.com/dcm-project/placement-manager/internal/store"
+	"github.com/dcm-project/placement-manager/internal/store/model"
 	"github.com/google/uuid"
 )
 
@@ -94,9 +95,9 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 
 	// Send request to SP Resource Manager
 	sprmRequest := sprm.CreateResourceRequest{
-		CatalogItemInstanceId: created.CatalogItemInstanceId,
-		Spec:                  policyResponse.EvaluatedSpec,
-		ProviderName:          providerName,
+		ID:           resourceIDStr,
+		Spec:         policyResponse.EvaluatedSpec,
+		ProviderName: providerName,
 	}
 
 	log.Debug("Provisioning resource via SPRM",
@@ -216,7 +217,7 @@ func (s *PlacementService) DeleteResource(ctx context.Context, requestID string)
 		"catalog_item_instance_id", resource.CatalogItemInstanceId,
 	)
 
-	err = s.sprm.DeleteResource(ctx, resource.CatalogItemInstanceId)
+	err = s.sprm.DeleteResource(ctx, requestID)
 	if err != nil {
 		log.Error("SPRM deletion failed, preserving DB record", "resource_id", requestID, "error", err)
 		return handleSPRMError(err)
@@ -237,6 +238,127 @@ func (s *PlacementService) DeleteResource(ctx context.Context, requestID string)
 		"catalog_item_instance_id", resource.CatalogItemInstanceId,
 	)
 	return nil
+}
+
+// RehydrateResource re-evaluates an existing resource against current policies
+// and creates a new resource with the given newResourceID. The old resource is
+// deleted after the new one is successfully provisioned.
+func (s *PlacementService) RehydrateResource(ctx context.Context, resourceID, newResourceID string) (*server.Resource, error) {
+	log := logging.FromContext(ctx)
+	log.Debug("Rehydrating resource",
+		"resource_id", resourceID,
+		"new_resource_id", newResourceID,
+	)
+
+	// Step 1: Retrieve the old resource
+	oldResource, err := s.store.Resource().Get(ctx, resourceID)
+	if err != nil {
+		if errors.Is(err, store.ErrResourceNotFound) {
+			return nil, NewNotFoundError(fmt.Sprintf("resource %s not found", resourceID))
+		}
+		log.Error("Failed to get resource for rehydration", "resource_id", resourceID, "error", err)
+		return nil, NewInternalError(fmt.Sprintf("failed to retrieve resource for rehydration: %v", err))
+	}
+
+	// Step 2: Re-evaluate the original spec through policy
+	policyRequest := policy.EvaluateRequest{
+		Spec: oldResource.Spec,
+	}
+
+	log.Debug("Re-evaluating policy for rehydration", "resource_id", resourceID)
+	policyResponse, err := s.policy.Evaluate(ctx, policyRequest)
+	if err != nil {
+		log.Error("Policy re-evaluation failed during rehydration", "resource_id", resourceID, "error", err)
+		return nil, handlePolicyError(err)
+	}
+
+	if policyResponse.SelectedProvider == "" {
+		log.Error("Policy response missing selected provider during rehydration",
+			"resource_id", resourceID,
+			"status", policyResponse.Status,
+		)
+		return nil, NewPolicyInternalError("policy response missing selected provider")
+	}
+
+	approvalStatus := policyResponse.Status
+	providerName := policyResponse.SelectedProvider
+
+	// Step 3: Create new resource in DB
+	newPath := fmt.Sprintf("resources/%s", newResourceID)
+	newResource := model.Resource{
+		ID:                    newResourceID,
+		CatalogItemInstanceId: oldResource.CatalogItemInstanceId,
+		Spec:                  oldResource.Spec,
+		Path:                  newPath,
+		ProviderName:          &providerName,
+		ApprovalStatus:        &approvalStatus,
+	}
+
+	created, err := s.store.Resource().Create(ctx, newResource)
+	if err != nil {
+		if errors.Is(err, store.ErrResourceIdExist) {
+			log.Warn("Duplicate new resource ID during rehydration", "new_resource_id", newResourceID)
+			return nil, NewConflictError(fmt.Sprintf("resource with id %s already exists", newResourceID))
+		}
+		log.Error("Failed to create new resource during rehydration", "new_resource_id", newResourceID, "error", err)
+		return nil, NewInternalError(fmt.Sprintf("failed to create database record for resource %s: %v", newResourceID, err))
+	}
+
+	// Step 4: Provision new resource in SPRM
+	sprmRequest := sprm.CreateResourceRequest{
+		ID:           newResourceID,
+		Spec:         policyResponse.EvaluatedSpec,
+		ProviderName: providerName,
+	}
+
+	log.Debug("Provisioning new resource via SPRM during rehydration",
+		"new_resource_id", newResourceID,
+		"catalog_item_instance_id", oldResource.CatalogItemInstanceId,
+	)
+
+	_, err = s.sprm.CreateResource(ctx, sprmRequest)
+	if err != nil {
+		// Rollback the new DB record
+		log.Error("SPRM provisioning failed during rehydration, rolling back", "new_resource_id", newResourceID, "error", err)
+		if delErr := s.store.Resource().Delete(ctx, newResourceID); delErr != nil {
+			log.Error("Failed to rollback new resource after SPRM error",
+				"new_resource_id", newResourceID,
+				"db_error", delErr,
+				"sprm_error", err,
+			)
+		}
+		return nil, handleSPRMError(err)
+	}
+
+	// Step 5: Delete old resource from SPRM (deferred - non-blocking)
+	log.Debug("Deleting old resource from SPRM (deferred)",
+		"resource_id", resourceID,
+		"catalog_item_instance_id", oldResource.CatalogItemInstanceId,
+	)
+
+	if err := s.sprm.DeleteResourceDeferred(ctx, resourceID); err != nil {
+		log.Error("SPRM deferred deletion failed during rehydration (non-blocking)",
+			"resource_id", resourceID,
+			"error", err,
+		)
+	}
+
+	// Step 6: Delete old resource from DB
+	if err := s.store.Resource().Delete(ctx, resourceID); err != nil {
+		log.Error("Failed to delete old resource from DB during rehydration (non-blocking)",
+			"resource_id", resourceID,
+			"error", err,
+		)
+	}
+
+	log.Info("Resource rehydrated successfully",
+		"old_resource_id", resourceID,
+		"new_resource_id", newResourceID,
+		"catalog_item_instance_id", oldResource.CatalogItemInstanceId,
+		"provider", providerName,
+		"approval_status", approvalStatus,
+	)
+	return storeModelToResource(created), nil
 }
 
 func getOrGenerateStringId(id *string) string {

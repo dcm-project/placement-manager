@@ -15,9 +15,9 @@ import (
 
 // CreateResourceRequest is the request body for creating a resource in SPRM
 type CreateResourceRequest struct {
-	CatalogItemInstanceId string         `json:"catalog_item_instance_id"`
-	Spec                  map[string]any `json:"spec"`
-	ProviderName          string         `json:"provider_name"`
+	ID           string         `json:"id"`
+	Spec         map[string]any `json:"spec"`
+	ProviderName string         `json:"provider_name"`
 }
 
 // CreateResourceResponse is the response from creating a resource
@@ -29,7 +29,8 @@ type CreateResourceResponse struct {
 // Client defines the interface for interacting with the Service Provider Resource Manager
 type Client interface {
 	CreateResource(ctx context.Context, req CreateResourceRequest) (*CreateResourceResponse, error)
-	DeleteResource(ctx context.Context, catalogItemInstanceId string) error
+	DeleteResource(ctx context.Context, resourceId string) error
+	DeleteResourceDeferred(ctx context.Context, resourceId string) error
 }
 
 // HTTPError represents an HTTP error from the SPRM
@@ -71,9 +72,9 @@ func (c *client) CreateResource(ctx context.Context, req CreateResourceRequest) 
 		Spec:         req.Spec,
 	}
 
-	// Use CatalogItemInstanceId as the query parameter id
+	// Use the Placement Manager resource ID as the query parameter id
 	params := &sprmv1alpha1.CreateInstanceParams{
-		Id: &req.CatalogItemInstanceId,
+		Id: &req.ID,
 	}
 
 	// Call the SP Resource Manager API
@@ -115,10 +116,21 @@ func mapCreateInstanceResponse(instance *sprmv1alpha1.ServiceTypeInstance) *Crea
 }
 
 // DeleteResource deletes a resource from the service provider
-func (c *client) DeleteResource(ctx context.Context, catalogItemInstanceId string) error {
-	// Call the SPRM API to delete the instance
+func (c *client) DeleteResource(ctx context.Context, resourceId string) error {
+	return c.deleteResource(ctx, resourceId, nil)
+}
+
+// DeleteResourceDeferred deletes a resource with deferred=true, so deletion
+// failures are recorded in the SPRM cleanup queue instead of returning an error.
+func (c *client) DeleteResourceDeferred(ctx context.Context, resourceId string) error {
+	deferred := true
+	params := &sprmv1alpha1.DeleteInstanceParams{Deferred: &deferred}
+	return c.deleteResource(ctx, resourceId, params)
+}
+
+func (c *client) deleteResource(ctx context.Context, resourceId string, params *sprmv1alpha1.DeleteInstanceParams) error {
 	operation := func() (any, error) {
-		resp, err := c.sprm.DeleteInstanceWithResponse(ctx, catalogItemInstanceId)
+		resp, err := c.sprm.DeleteInstanceWithResponse(ctx, resourceId, params)
 		if err != nil {
 			return nil, fmt.Errorf("failed to call sprm delete: %w", err)
 		}

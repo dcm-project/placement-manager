@@ -145,6 +145,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /resources/{resourceId}:rehydrate:
+    post:
+      tags:
+        - resource
+      summary: Rehydrate a resource
+      operationId: :RehydrateResource
+      description: |
+        Re-evaluates an existing resource against current policies and
+        creates a new resource with the provided new_resource_id. The old
+        resource is deleted after the new one is successfully provisioned.
+      parameters:
+        - $ref: '#/components/parameters/ResourceIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RehydrateRequest'
+      responses:
+        '200':
+          description: Rehydration accepted and in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          description: Request rejected by Policy Engine
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - newResourceId already in use or policy conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: SPRM provider error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          description: Unexpected error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /resources/{resourceId}:
     get:
       tags:
@@ -301,6 +363,19 @@ components:
           type: string
           description: Token for retrieving the next page of results
           example: "eyJpZCI6IjEyM2U0NTY3LWU4OWItMTJkMy1hNDU2LTQyNjYxNDE3NDAwMCJ9"
+
+    RehydrateRequest:
+      type: object
+      description: Request body for resource rehydration
+      required:
+        - new_resource_id
+      properties:
+        new_resource_id:
+          type: string
+          description: The new resource ID to use for the rehydrated resource
+          pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+          minLength: 1
+          maxLength: 63
 
     Error:
       type: object
