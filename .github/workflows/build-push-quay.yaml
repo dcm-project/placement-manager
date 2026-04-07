@@ -2,7 +2,7 @@ name: Build and Push Image
 
 on:
   push:
-    branches: [main, 'v*']
+    branches: [main, 'release/v*']
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -11,11 +11,27 @@ on:
         required: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.rc.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v6
+        if: startsWith(github.ref, 'refs/heads/release/v')
+      - name: Read VERSION file
+        id: rc
+        if: startsWith(github.ref, 'refs/heads/release/v')
+        run: |
+          VERSION=$(cat VERSION)
+          echo "tags=${VERSION},${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
   build-push:
+    needs: prepare
     uses: dcm-project/shared-workflows/.github/workflows/build-push-quay.yaml@main
     with:
       image-name: placement-manager
-      version: ${{ startsWith(github.ref, 'refs/heads/v') && github.ref_name || github.event.inputs.version || '' }}
+      version: ${{ github.event.inputs.version || '' }}
+      tags: ${{ needs.prepare.outputs.tags || '' }}
     secrets:
       quay-username: ${{ secrets.QUAY_USERNAME }}
       quay-password: ${{ secrets.QUAY_TOKEN }}
