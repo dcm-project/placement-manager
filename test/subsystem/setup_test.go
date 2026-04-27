@@ -64,6 +64,29 @@ func stubPolicyEvaluateModified(providerName string, evaluatedSpec map[string]an
 	postWireMockMapping(policyWireMockURL, stub)
 }
 
+func stubPolicyEvaluateApprovedNoProvider() {
+	stub := map[string]any{
+		"request": map[string]any{
+			"method":     "POST",
+			"urlPattern": "/api/v1alpha1/policies:evaluateRequest",
+		},
+		"response": map[string]any{
+			"status": 200,
+			"headers": map[string]string{
+				"Content-Type": "application/json",
+			},
+			"jsonBody": map[string]any{
+				"status":            "APPROVED",
+				"selected_provider": "",
+				"evaluated_service_instance": map[string]any{
+					"spec": map[string]any{"cpu": 2, "memory": "4Gi"},
+				},
+			},
+		},
+	}
+	postWireMockMapping(policyWireMockURL, stub)
+}
+
 func stubPolicyEvaluateRejected() {
 	stub := map[string]any{
 		"request": map[string]any{

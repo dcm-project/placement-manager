@@ -294,7 +294,7 @@ var _ = Describe("PlacementService", func() {
 			Expect(svcErr.Message).To(ContainSubstring("I'm a teapot"))
 		})
 
-		It("returns error when policy response is missing selected provider", func() {
+		It("returns policy dependency when policy response has no selected provider", func() {
 			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
 				return &policy.EvaluateResponse{
 					Status:           "APPROVED",
@@ -315,8 +315,8 @@ var _ = Describe("PlacementService", func() {
 			var svcErr *service.ServiceError
 			Expect(err).To(BeAssignableToTypeOf(svcErr))
 			svcErr = err.(*service.ServiceError)
-			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
-			Expect(svcErr.Message).To(ContainSubstring("missing selected provider"))
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyDependency))
+			Expect(svcErr.Message).To(ContainSubstring("No service provider was selected"))
 		})
 
 		It("returns error when policy client communication fails", func() {
@@ -808,7 +808,7 @@ var _ = Describe("PlacementService", func() {
 			Expect(old).NotTo(BeNil())
 		})
 
-		It("returns error when policy returns empty provider", func() {
+		It("returns policy dependency when policy returns no selected provider", func() {
 			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
 				return &policy.EvaluateResponse{
 					Status:           "APPROVED",
@@ -823,7 +823,12 @@ var _ = Describe("PlacementService", func() {
 			Expect(result).To(BeNil())
 			var svcErr *service.ServiceError
 			Expect(errors.As(err, &svcErr)).To(BeTrue())
-			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyInternalError))
+			Expect(svcErr.Code).To(Equal(service.ErrCodePolicyDependency))
+			Expect(svcErr.Message).To(ContainSubstring("No service provider was selected"))
+
+			old, err := placementSvc.GetResource(ctx, oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(old).NotTo(BeNil())
 		})
 
 		It("returns conflict when new resource ID already exists", func() {
