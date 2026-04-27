@@ -614,6 +614,7 @@ type CreateResourceResponse struct {
 	ApplicationproblemJSON406     *Error
 	ApplicationproblemJSON409     *Error
 	ApplicationproblemJSON422     *Error
+	ApplicationproblemJSON424     *Error
 	ApplicationproblemJSONDefault *Error
 }
 
@@ -692,6 +693,7 @@ type RehydrateResourceResponse struct {
 	ApplicationproblemJSON406     *Error
 	ApplicationproblemJSON409     *Error
 	ApplicationproblemJSON422     *Error
+	ApplicationproblemJSON424     *Error
 	ApplicationproblemJSONDefault *Error
 }
 
@@ -896,6 +898,13 @@ func ParseCreateResourceResponse(rsp *http.Response) (*CreateResourceResponse, e
 		}
 		response.ApplicationproblemJSON422 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 424:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON424 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -1057,6 +1066,13 @@ func ParseRehydrateResourceResponse(rsp *http.Response) (*RehydrateResourceRespo
 			return nil, err
 		}
 		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 424:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON424 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest Error
