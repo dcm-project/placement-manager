@@ -126,6 +126,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '424':
+          description: Policy dependency not met (no provider selected)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Conflict - resourceID already in use or policy conflict
           content:
@@ -184,6 +190,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '406':
           description: Request rejected by Policy Engine
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '424':
+          description: Policy dependency not met (no provider selected)
           content:
             application/problem+json:
               schema:
