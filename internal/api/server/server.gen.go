@@ -629,6 +629,20 @@ func (response CreateResource422ApplicationProblemPlusJSONResponse) VisitCreateR
 	return err
 }
 
+type CreateResource424ApplicationProblemPlusJSONResponse Error
+
+func (response CreateResource424ApplicationProblemPlusJSONResponse) VisitCreateResourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(424)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateResourcedefaultApplicationProblemPlusJSONResponse struct {
 	Body       Error
 	StatusCode int
@@ -877,6 +891,20 @@ func (response RehydrateResource422ApplicationProblemPlusJSONResponse) VisitRehy
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RehydrateResource424ApplicationProblemPlusJSONResponse Error
+
+func (response RehydrateResource424ApplicationProblemPlusJSONResponse) VisitRehydrateResourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(424)
 	_, err := buf.WriteTo(w)
 	return err
 }
