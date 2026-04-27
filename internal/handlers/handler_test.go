@@ -346,6 +346,32 @@ var _ = Describe("Handler", func() {
 			Expect(*problemResp.Status).To(Equal(406))
 		})
 
+		It("returns 424 when policy returns no selected provider", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return &policy.EvaluateResponse{
+					Status:           "APPROVED",
+					SelectedProvider: "",
+					EvaluatedSpec:    req.Spec,
+				}, nil
+			}
+
+			req := server.CreateResourceRequestObject{
+				Body: &server.Resource{
+					CatalogItemInstanceId: "catalog-no-provider",
+					Spec:                  map[string]interface{}{"cpu": 2},
+				},
+			}
+
+			resp, err := handler.CreateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.CreateResource424ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 424 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("policy-dependency"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(424))
+		})
+
 		It("returns 409 when policy conflict detected", func() {
 			mockPolicy.EvaluateFunc = func(_ context.Context, _ policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
 				return nil, &policy.HTTPError{StatusCode: 409, Body: "policy conflict"}
@@ -687,6 +713,30 @@ var _ = Describe("Handler", func() {
 			Expect(problemResp.Type).To(Equal("policy-rejected"))
 			Expect(problemResp.Status).NotTo(BeNil())
 			Expect(*problemResp.Status).To(Equal(406))
+		})
+
+		It("returns 424 when re-evaluation has no selected provider", func() {
+			mockPolicy.EvaluateFunc = func(_ context.Context, req policy.EvaluateRequest) (*policy.EvaluateResponse, error) {
+				return &policy.EvaluateResponse{
+					Status:           "APPROVED",
+					SelectedProvider: "",
+					EvaluatedSpec:    req.Spec,
+				}, nil
+			}
+
+			req := server.RehydrateResourceRequestObject{
+				ResourceId: oldResourceID,
+				Body:       &server.RehydrateRequest{NewResourceId: uuid.New().String()},
+			}
+
+			resp, err := handler.RehydrateResource(ctx, req)
+
+			Expect(err).NotTo(HaveOccurred())
+			problemResp, ok := resp.(server.RehydrateResource424ApplicationProblemPlusJSONResponse)
+			Expect(ok).To(BeTrue(), "Expected 424 response but got: %T", resp)
+			Expect(problemResp.Type).To(Equal("policy-dependency"))
+			Expect(problemResp.Status).NotTo(BeNil())
+			Expect(*problemResp.Status).To(Equal(424))
 		})
 
 		It("returns 409 when new resource ID already exists", func() {

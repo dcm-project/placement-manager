@@ -92,6 +92,22 @@ var _ = Describe("Placement API", func() {
 			verifySPRMCreateResourceCalled(0)
 		})
 
+		It("returns 424 when policy returns no selected provider", func() {
+			resetPolicyWireMock()
+			stubPolicyEvaluateApprovedNoProvider()
+
+			body := v1alpha1.Resource{
+				CatalogItemInstanceId: "catalog-no-provider",
+				Spec:                  map[string]any{"cpu": 2},
+			}
+
+			resp, err := apiClient.CreateResourceWithResponse(context.Background(), nil, body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.StatusCode()).To(Equal(http.StatusFailedDependency))
+
+			verifySPRMCreateResourceCalled(0)
+		})
+
 		It("returns 500 when policy engine fails", func() {
 			resetPolicyWireMock()
 			stubPolicyEvaluateFailure()
@@ -337,6 +353,42 @@ var _ = Describe("Placement API", func() {
 			verifySPRMCreateResourceCalled(0)
 
 			// Verify old resource still exists
+			getResp, err := apiClient.GetResourceWithResponse(context.Background(), oldResourceID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(getResp.StatusCode()).To(Equal(http.StatusOK))
+		})
+
+		It("returns 424 when policy re-evaluation has no selected provider", func() {
+			// Create a resource first
+			body := v1alpha1.Resource{
+				CatalogItemInstanceId: "catalog-rehydrate-no-provider-" + uuid.New().String()[:8],
+				Spec:                  map[string]any{"cpu": 2},
+			}
+
+			createResp, err := apiClient.CreateResourceWithResponse(context.Background(), nil, body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(createResp.StatusCode()).To(Equal(http.StatusCreated))
+
+			oldResourceID := *createResp.JSON201.Id
+
+			resetPolicyWireMock()
+			resetSPRMWireMock()
+			stubPolicyEvaluateApprovedNoProvider()
+
+			rehydrateBody := v1alpha1.RehydrateRequest{
+				NewResourceId: uuid.New().String(),
+			}
+
+			resp, err := apiClient.RehydrateResourceWithResponse(context.Background(), oldResourceID, rehydrateBody)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.StatusCode()).To(Equal(http.StatusFailedDependency))
+
+			verifySPRMCreateResourceCalled(0)
+
+			// Old resource still exists
+			resetPolicyWireMock()
+			resetSPRMWireMock()
+
 			getResp, err := apiClient.GetResourceWithResponse(context.Background(), oldResourceID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(getResp.StatusCode()).To(Equal(http.StatusOK))
