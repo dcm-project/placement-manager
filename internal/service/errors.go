@@ -19,6 +19,7 @@ const (
 	ErrCodePolicyError         = "POLICY_ERROR"
 	ErrCodePolicyInternalError = "POLICY_INTERNAL_ERROR"
 	ErrCodePolicyRejected      = "POLICY_REJECTED"
+	ErrCodePolicyDependency    = "POLICY_DEPENDENCY"
 	ErrCodePolicyConflict      = "POLICY_CONFLICT"
 	ErrCodeSPRMError           = "SPRM_ERROR"
 )
@@ -84,6 +85,13 @@ func NewPolicyRejectedError(message string) *ServiceError {
 	}
 }
 
+func NewPolicyDependencyError(message string) *ServiceError {
+	return &ServiceError{
+		Code:    ErrCodePolicyDependency,
+		Message: message,
+	}
+}
+
 func NewPolicyConflictError(message string) *ServiceError {
 	return &ServiceError{
 		Code:    ErrCodePolicyConflict,
@@ -106,7 +114,7 @@ func IsClientError(err error, svcErr **ServiceError) bool {
 	}
 	switch (*svcErr).Code {
 	case ErrCodeValidation, ErrCodeNotFound, ErrCodeConflict,
-		ErrCodePolicyRejected, ErrCodePolicyConflict, ErrCodeProviderError:
+		ErrCodePolicyRejected, ErrCodePolicyDependency, ErrCodePolicyConflict, ErrCodeProviderError:
 		return true
 	}
 	return false

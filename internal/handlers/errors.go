@@ -53,6 +53,8 @@ func handleCreateResourceError(err error) server.CreateResourceResponseObject {
 			return server.CreateResource400ApplicationProblemPlusJSONResponse(newError("validation-error", "Validation failed", svcErr.Message, 400))
 		case service.ErrCodePolicyRejected:
 			return server.CreateResource406ApplicationProblemPlusJSONResponse(newError("policy-rejected", "Policy rejected request", svcErr.Message, 406))
+		case service.ErrCodePolicyDependency:
+			return server.CreateResource424ApplicationProblemPlusJSONResponse(newError("policy-dependency", "Policy dependency not met", svcErr.Message, 424))
 		case service.ErrCodeConflict:
 			return server.CreateResource409ApplicationProblemPlusJSONResponse(newError("resource-conflict", "Resource already exists", svcErr.Message, 409))
 		case service.ErrCodePolicyConflict:
@@ -100,6 +102,8 @@ func handleRehydrateResourceError(err error) server.RehydrateResourceResponseObj
 			return server.RehydrateResource404ApplicationProblemPlusJSONResponse(newError("not-found", "Resource not found", svcErr.Message, 404))
 		case service.ErrCodePolicyRejected:
 			return server.RehydrateResource406ApplicationProblemPlusJSONResponse(newError("policy-rejected", "Policy rejected request", svcErr.Message, 406))
+		case service.ErrCodePolicyDependency:
+			return server.RehydrateResource424ApplicationProblemPlusJSONResponse(newError("policy-dependency", "Policy dependency not met", svcErr.Message, 424))
 		case service.ErrCodeConflict, service.ErrCodePolicyConflict:
 			return server.RehydrateResource409ApplicationProblemPlusJSONResponse(newError("resource-conflict", "Resource conflict", svcErr.Message, 409))
 		case service.ErrCodeProviderError:

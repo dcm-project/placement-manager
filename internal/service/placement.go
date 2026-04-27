@@ -62,11 +62,11 @@ func (s *PlacementService) CreateResource(ctx context.Context, req *server.Resou
 	}
 
 	if policyResponse.SelectedProvider == "" {
-		log.Error("Policy response missing selected provider",
+		log.Warn("Policy evaluation did not select a provider",
 			"resource_id", resourceIDStr,
 			"status", policyResponse.Status,
 		)
-		return nil, NewPolicyInternalError("policy response missing selected provider")
+		return nil, errNoSelectedProvider()
 	}
 
 	// Extract approvalStatus and providerName from policy response
@@ -273,11 +273,11 @@ func (s *PlacementService) RehydrateResource(ctx context.Context, resourceID, ne
 	}
 
 	if policyResponse.SelectedProvider == "" {
-		log.Error("Policy response missing selected provider during rehydration",
+		log.Warn("Policy evaluation did not select a provider during rehydration",
 			"resource_id", resourceID,
 			"status", policyResponse.Status,
 		)
-		return nil, NewPolicyInternalError("policy response missing selected provider")
+		return nil, errNoSelectedProvider()
 	}
 
 	approvalStatus := policyResponse.Status
@@ -367,4 +367,15 @@ func getOrGenerateStringId(id *string) string {
 	}
 	// Generate UUID if not provided
 	return uuid.New().String()
+}
+
+// errNoSelectedProvider maps an otherwise successful policy evaluate response
+// with no selected_provider to POLICY_DEPENDENCY (HTTP 424). This means policy
+// evaluation completed but no policy selected a provider, so placement cannot
+// proceed because a required policy dependency/precondition was not met.
+func errNoSelectedProvider() *ServiceError {
+	return NewPolicyDependencyError(
+		"No service provider was selected by policy evaluation. " +
+			"Ensure an enabled policy matches this request and assigns a provider.",
+	)
 }
