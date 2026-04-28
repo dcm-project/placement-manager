@@ -50,6 +50,11 @@ type client struct {
 
 // NewClient creates a new Service Provider Resource Manager client
 func NewClient(baseURL string, timeout time.Duration, opts ...sprmclient.ClientOption) (Client, error) {
+	return NewClientWithRetryOpts(baseURL, timeout, httputil.DefaultRetryOpts(), opts...)
+}
+
+// NewClientWithRetryOpts creates a new Service Provider Resource Manager client with custom retry settings.
+func NewClientWithRetryOpts(baseURL string, timeout time.Duration, retryOpts []backoff.RetryOption, opts ...sprmclient.ClientOption) (Client, error) {
 	httpClient := &http.Client{Timeout: timeout}
 	opts = append([]sprmclient.ClientOption{sprmclient.WithHTTPClient(httpClient)}, opts...)
 
@@ -60,7 +65,7 @@ func NewClient(baseURL string, timeout time.Duration, opts ...sprmclient.ClientO
 
 	return &client{
 		sprm:      sprm,
-		retryOpts: httputil.DefaultRetryOpts(),
+		retryOpts: retryOpts,
 	}, nil
 }
 

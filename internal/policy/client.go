@@ -47,6 +47,11 @@ type client struct {
 
 // NewClient creates a new policy engine client
 func NewClient(baseURL string, timeout time.Duration, opts ...engineclient.ClientOption) (Client, error) {
+	return NewClientWithRetryOpts(baseURL, timeout, httputil.DefaultRetryOpts(), opts...)
+}
+
+// NewClientWithRetryOpts creates a new policy engine client with custom retry settings.
+func NewClientWithRetryOpts(baseURL string, timeout time.Duration, retryOpts []backoff.RetryOption, opts ...engineclient.ClientOption) (Client, error) {
 	httpClient := &http.Client{Timeout: timeout}
 	opts = append([]engineclient.ClientOption{engineclient.WithHTTPClient(httpClient)}, opts...)
 
@@ -57,7 +62,7 @@ func NewClient(baseURL string, timeout time.Duration, opts ...engineclient.Clien
 
 	return &client{
 		engine:    engine,
-		retryOpts: httputil.DefaultRetryOpts(),
+		retryOpts: retryOpts,
 	}, nil
 }
 

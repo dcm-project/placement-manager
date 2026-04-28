@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dcm-project/placement-manager/internal/policy"
+	"github.com/dcm-project/placement-manager/internal/testutil"
 	enginev1alpha1 "github.com/dcm-project/policy-manager/api/v1alpha1/engine"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,7 +45,7 @@ var _ = Describe("Policy Engine Client", func() {
 		}))
 
 		var err error
-		client, err = policy.NewClient(server.URL, 5*time.Second)
+		client, err = policy.NewClientWithRetryOpts(server.URL, 5*time.Second, testutil.FastRetryOpts())
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -171,8 +172,15 @@ var _ = Describe("Policy Engine Client", func() {
 	})
 
 	Describe("NewClient", func() {
+		It("constructs a client with default retry configuration", func() {
+			client, err := policy.NewClient(server.URL, 5*time.Second)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(client).NotTo(BeNil())
+		})
+
 		It("creates client with valid base URL", func() {
-			client, err := policy.NewClient("http://localhost:8080", 5*time.Second)
+			client, err := policy.NewClientWithRetryOpts("http://localhost:8080", 5*time.Second, testutil.FastRetryOpts())
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(client).NotTo(BeNil())
@@ -185,7 +193,7 @@ var _ = Describe("Policy Engine Client", func() {
 			}))
 			defer slowServer.Close()
 
-			c, err := policy.NewClient(slowServer.URL, 10*time.Millisecond)
+			c, err := policy.NewClientWithRetryOpts(slowServer.URL, 10*time.Millisecond, testutil.FastRetryOpts())
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = c.Evaluate(ctx, policy.EvaluateRequest{Spec: map[string]any{"cpu": "2"}})
