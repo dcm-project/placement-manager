@@ -7,17 +7,42 @@ import (
 	"github.com/cenkalti/backoff/v5"
 )
 
-// DefaultRetryOpts returns the standard retry options used across HTTP clients.
-func DefaultRetryOpts() []backoff.RetryOption {
+const (
+	defaultRetryInitialInterval = 1 * time.Second
+	defaultRetryMultiplier      = 2.0
+	defaultRetryMaxInterval     = 4 * time.Second
+	defaultRetryMaxTries        = 4
+)
+
+// RetryConfig defines retry/backoff tuning parameters.
+type RetryConfig struct {
+	InitialInterval time.Duration
+	Multiplier      float64
+	MaxInterval     time.Duration
+	MaxTries        uint
+}
+
+// RetryOpts builds retry options from the provided config.
+func RetryOpts(cfg RetryConfig) []backoff.RetryOption {
 	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = 1 * time.Second
-	expBackoff.Multiplier = 2
-	expBackoff.MaxInterval = 4 * time.Second
+	expBackoff.InitialInterval = cfg.InitialInterval
+	expBackoff.Multiplier = cfg.Multiplier
+	expBackoff.MaxInterval = cfg.MaxInterval
 
 	return []backoff.RetryOption{
 		backoff.WithBackOff(expBackoff),
-		backoff.WithMaxTries(4),
+		backoff.WithMaxTries(cfg.MaxTries),
 	}
+}
+
+// DefaultRetryOpts returns the standard retry options used across HTTP clients.
+func DefaultRetryOpts() []backoff.RetryOption {
+	return RetryOpts(RetryConfig{
+		InitialInterval: defaultRetryInitialInterval,
+		Multiplier:      defaultRetryMultiplier,
+		MaxInterval:     defaultRetryMaxInterval,
+		MaxTries:        defaultRetryMaxTries,
+	})
 }
 
 // IsPermanentHTTPError returns true if the HTTP status code represents a
