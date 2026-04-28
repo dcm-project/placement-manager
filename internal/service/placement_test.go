@@ -829,6 +829,14 @@ var _ = Describe("PlacementService", func() {
 			old, err := placementSvc.GetResource(ctx, oldResourceID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(old).NotTo(BeNil())
+
+			// New resource was not created
+			newRes, err := placementSvc.GetResource(ctx, "new-id-empty")
+			Expect(err).To(HaveOccurred())
+			Expect(newRes).To(BeNil())
+			var notFoundErr *service.ServiceError
+			Expect(errors.As(err, &notFoundErr)).To(BeTrue())
+			Expect(notFoundErr.Code).To(Equal(service.ErrCodeNotFound))
 		})
 
 		It("returns conflict when new resource ID already exists", func() {
