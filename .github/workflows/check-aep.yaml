@@ -3,6 +3,9 @@ name: Check AEP Compliance
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'api/**'
+      - '.spectral.yaml'
 
 jobs:
   check-aep:

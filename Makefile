@@ -57,7 +57,7 @@ check-generate-api: generate-api
 
 # Check AEP compliance
 check-aep:
-	spectral lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
+	npx --yes @stoplight/spectral-cli lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
 
 subsystem-test-up:
 	$(COMPOSE) -f test/subsystem/docker-compose.yaml up -d --build
