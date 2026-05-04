@@ -1,0 +1,16 @@
+title = "dcm-placement-manager gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Local-dev placeholder password in docker-compose and docs"
+paths = [
+    '''test/subsystem/docker-compose\.yaml''',
+    '''README\.md''',
+]
+regexes = [
+    '''adminpass''',
+]
+regexTarget = "match"
+condition = "AND"
