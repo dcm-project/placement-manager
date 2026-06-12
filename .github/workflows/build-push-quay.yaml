@@ -1,9 +1,11 @@
 name: Build and Push Image
 
 on:
-  push:
-    branches: [main, 'release/v*']
-    tags: ['v*']
+  # Automatic builds disabled — placement-manager is merged into control-plane.
+  # Images: quay.io/dcm-project/control-plane (see control-plane repo).
+  # push:
+  #   branches: [main, 'release/v*']
+  #   tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
