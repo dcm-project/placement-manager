@@ -1,4 +1,15 @@
-# DCM Placement Manager
+# DCM Placement Manager (archived)
+
+> [!WARNING]
+> **This repository is archived and read-only.** Do not open PRs here.
+>
+> All active development moved to the
+> [control-plane](https://github.com/dcm-project/control-plane) monolith.
+
+---
+
+<details>
+<summary><strong>Legacy README</strong> (historical reference only)</summary>
 
 DCM Placement Manager is a Go service that orchestrates resource provisioning within the DCM ecosystem.
 On receiving a creation request, the DCM Placement Manager evaluates the spec against
@@ -297,3 +308,5 @@ in shared-workflows for the full release process, tag behavior, and version conv
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) for details.
+
+</details>
